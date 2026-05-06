@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# `o`: with no arguments opens current directory, otherwise opens the given
+# location
+o() 
+{
+  if [ $# -eq 0 ]; then
+    xdg-open .
+  else
+    xdg-open "$@"
+  fi
+}

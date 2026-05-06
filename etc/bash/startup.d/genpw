@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# passwdgen: a password generator
+#
+# usage: passwdgen 8
+genpw()
+{
+	if [ $1 ]; then
+		local length=$1
+	else 
+		local length=16
+	fi
+
+	cat /dev/urandom | head -c${1:-512} | sha512sum | head -c${1:-${length}}
+	echo ""
+}

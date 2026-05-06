@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# os_info: show some info about your system in recfile format
+user_info()
+{
+	type hostname > /dev/null 2>&1 && {
+		local HOST=$(hostname -f | tr '[:upper:]' '[:lower:]');
+	}
+
+	type whoami  > /dev/null 2>&1 && {
+		local USER=$(whoami)
+	}
+
+	echo "$USER@$HOST"
+}

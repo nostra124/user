@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if which python > /dev/null; then
+	PYTHON=$(which python)
+elif which python3 > /dev/null; then
+	PYTHON=$(which python3)
+fi
+
+if [ ! -z "$PYTHON" ]; then
+	PYTHONUSERBASE=$($PYTHON -m site --user-base)
+	PYTHONUSERSITE=$($PYTHON -m site --user-site)
+	mkdir -p "$PYTHONUSERBASE"
+	mkdir -p "$PYTHONUSERSITE"
+	export PATH="$PYTHONUSERBASE/bin:$PATH"
+
+	PYTHON_MAJOR_VERSION=$($PYTHON -c "import sys;print(sys.version_info.major)")
+	PYTHON_MINOR_VERSION=$($PYTHON -c "import sys;print(sys.version_info.minor)")
+fi

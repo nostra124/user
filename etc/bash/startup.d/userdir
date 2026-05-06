@@ -1,0 +1,23 @@
+#!/bin/bash
+
+if [ -x /usr/bin/xdg-user-dirs-update ]; then
+	if [ $(xdg-user-dir ARCHIVE) = $HOME ]; then
+		xdg-user-dirs-update --set ARCHIVE $HOME/Archiv/
+	fi
+
+	if [ $(xdg-user-dir DOCUMENTS) = $HOME ]; then
+		xdg-user-dirs-update --set DOCUMENTS $HOME/Documents
+	fi
+
+	if [ $(xdg-user-dir MUSIC) = $HOME ]; then
+		xdg-user-dirs-update --set MUSIC $HOME/Music
+	fi
+
+	if [ $(xdg-user-dir VIDEOS) = $HOME ]; then
+		xdg-user-dirs-update --set VIDEOS $HOME/Videos
+	fi
+
+	if [ $(xdg-user-dir PICTURES) = $HOME ]; then
+		xdg-user-dirs-update --set PICTURES $HOME/Pictures
+	fi
+fi

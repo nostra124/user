@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# digga: All the dig info
+digga()
+{
+  dig +nocmd "$1" any +multiline +noall +answer
+}

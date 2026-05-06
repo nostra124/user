@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# larger bash history (allow 32³ entries; default is 500)
+export HISTSIZE=32768
+export HISTFILESIZE=$HISTSIZE
+
+# ignore duplicates commands in the historylog
+HISTCONTROL=$HISTCONTROL${HISTCONTROL+:}ignoredups
+#export HISTCONTROL=ignoredups
+export HISTCONTROL=ignoreboth
+
+# make some commands not show up in history
+export HISTIGNORE='&:clear:pwd:exit:date:[bf]g:exit:[ t\]*:* --help'
+
+# add the date to the historylog
+# 
+# Keep track of the time the commands were executed.
+# The xterm colour escapes require special care when piping; e.g. "| less -R".
+export HISTTIMEFORMAT="${FG_BLUE}${FONT_BOLD}%Y/%m/%d %H:%M:%S${FONT_RESET}  ";
+
+# append to the history file, don't overwrite it
+shopt -s histappend

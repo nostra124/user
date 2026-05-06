@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# logssh: establish ssh connection + write a logfile
+logssh() 
+{
+  ssh $1 | tee sshlog
+}

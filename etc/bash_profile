@@ -1,0 +1,110 @@
+#!/bin/sh
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+	export BASH_SILENCE_DEPRECATION_WARNING=1 # suppress warning on MAC OS
+fi
+
+############# STARTUP FILES #################################
+# try to load global-profile
+if [ -f /etc/profile ]; then
+	source /etc/profile
+fi
+
+if [ -f ~/.bashrc ]; then
+	source ~/.bashrc;
+fi
+
+############# SETTINGS ###################################
+
+# enable some Bash 4 features when possible:
+# * `autocd`, e.g. `**/qux` will enter `./foo/bar/baz/qux`
+# * Recursive globbing, e.g. `echo **/*.txt`
+
+if [ $BASH_VERSINFO -eq 4 ]; then
+	for option in autocd globstar cmdhist dotglob extglob cdable_vars; do
+		shopt -s "$option" 2> /dev/null
+	done
+	
+	# If set, the pattern "**" used in a pathname expansion context will
+	# match all files and zero or more directories and subdirectories.
+	shopt -s globstar
+fi
+
+# Do not autocomplete when accidentally pressing Tab on an empty line. (It takes
+# forever and yields "Display all 15 gazillion possibilites?")
+shopt -s no_empty_cmd_completion;
+
+# When the command contains an invalid history operation (for instance when
+# using an unescaped "!" (I get that a lot in quick e-mails and commit
+# messages) or a failed substitution (e.g. "^foo^bar" when there was no "foo"
+# in the previous command line), do not throw away the command line, but let me
+# correct it.
+shopt -s histreedit;
+
+# append to the Bash history file, rather than overwriting it
+shopt -s histappend
+
+# check the window size after each command and, if necessary,
+# update the values of LINES and COLUMNS.
+shopt -s checkwinsize
+
+# check if the user isn't root
+if [ "$UID" != 0 ]; then
+	# case-insensitive globbing (used in pathname expansion)
+	shopt -s nocaseglob
+
+	# autocorrect typos in path names when using `cd`
+	shopt -s cdspell
+fi
+
+# Do not autocomplete when accidentally pressing Tab on an empty line. (It takes
+# forever and yields "Display all 15 gazillion possibilites?")
+shopt -s no_empty_cmd_completion;
+
+############# COMPLETIONS ###################################
+if ! shopt -oq posix; then
+	if [ -f /usr/share/bash-completion/bash_completion ]; then
+		source /usr/share/bash-completion/bash_completion
+	elif [ -f /etc/bash_completion ]; then
+		source /etc/bash_completion
+	fi
+	
+	[ -d /usr/local/etc/bash_completion.d ] && for file in /usr/local/etc/bash_completion.d/*; do
+		[ -f "$file" ] && source "$file"
+	done
+	unset file
+
+    [ -d ~/.local/etc/bash_completion.d ] && for file in ~/.local/etc/bash_completion.d/*; do
+	    [ -f "$file" ] && source "$file"
+    done
+    unset file
+fi
+
+############# COLORS ########################################
+if [ -f ~/.local/etc/bash/colors ]; then
+	source ~/.local/etc/bash/colors
+elif [ -f /usr/local/etc/bash/colors ]; then
+    source /usr/local/etc/bash/colors
+fi
+
+############# ICONS #########################################
+if [ -f ~/.local/etc/bash/icons ]; then
+	source ~/.local/etc/bash/icons
+elif [ -f /usr/local/etc/bash/icons ]; then
+    source /usr/local/etc/bash/icons
+fi
+
+############# PROMPT ########################################
+if [ -f ~/.local/etc/bash/prompt ]; then 
+	source ~/.local/etc/bash/prompt
+elif [ -f /usr/local/etc/bash/prompt ]; then
+    source /usr/local/etc/bash/prompt
+fi
+
+# Local variables:
+# mode: shell-script
+# sh-basic-offset: 4
+# sh-indent-comment: t
+# indent-tabs-mode: nil
+# End:
+# ex: ts=4 sw=4 et filetype=sh

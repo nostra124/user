@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ -f $HOME/.config/x509/ca-bundle.crt ]; then
+	export CURL_CA_BUNDLE=$HOME/.config/x509/ca-bundle.crt
+elif [ -f /etc/x509/ca-bundle.crt ]; then
+	export CURL_CA_BUNDLE=/etc/x509/ca-bundle.crt
+fi

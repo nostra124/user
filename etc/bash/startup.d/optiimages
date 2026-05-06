@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# optiImages: optimized images (png/jpg) in the current dir + sub-dirs
+#
+# INFO: use "grunt-contrib-imagemin" for websites!
+optiImages()
+{
+  find . -iname '*.png' -exec optipng -o7 {} \;
+  find . -iname '*.jpg' -exec jpegoptim --force {} \;
+}

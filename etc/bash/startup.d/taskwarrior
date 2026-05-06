@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# HOSTNAME=$(hostname --f | tr '[:upper:]' '[:lower:]')
+
+# mkdir -p ${HOME}/.config/taskwarrior/${HOSTNAME}
+
+# export TASKRC=${HOME}/.config/taskwarrior/${HOSTNAME}/rc 
+# export TASKDATA=${HOME}/.config/taskwarrior/${HOSTNAME}/data

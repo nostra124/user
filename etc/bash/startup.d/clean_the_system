@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# cleanTheSystem: purge old config, kernel, trash etc.
+#
+# WARNING: take a look on what the package-manager will do
+cleanTheSystem()
+{
+  local OLDCONF=$(dpkg -l | grep "^rc"|awk '{print $2}')
+  local CURKERNEL=$(uname -r | sed 's/-*[a-z]//g' | sed 's/-386//g' | sed 's/-164//g')
+  local LINUXPKG="linux-(image|headers|ubuntu-modules|restricted-modules)"
+  local METALINUXPKG="linux-(image|headers|restricted-modules)-(generic|i386|amd64|server|common|rt|xen)"
+  local OLDKERNELS=$(dpkg -l | awk '{print $2}' | grep -E $LINUXPKG | grep -vE $METALINUXPKG | grep -v $CURKERNEL)
+
+  echo -e $COLOR_YELLOW"clear ".deb"-cache ..."$COLOR_NO_COLOR
+  sudo aptitude autoclean
+
+  echo -e $COLOR_RED"remove not needed packages ..."$COLOR_NO_COLOR
+  sudo apt-get autoremove
+
+  echo -e $COLOR_YELLOW"remove old config-files..."$COLOR_NO_COLOUR
+  sudo aptitude purge $OLDCONF
+
+  echo -e $COLOR_YELLOW"remove old kernels ..."$COLOR_NO_COLOUR
+  sudo aptitude purge $OLDKERNELS
+
+  echo -e $COLOR_YELLOW"clean trash ..."$COLOR_NO_COLOUR
+  sudo rm -rf /home/*/.local/share/Trash/*/** &> /dev/null
+  sudo rm -rf /root/.local/share/Trash/*/** &> /dev/null
+
+  echo -e $COLOR_YELLOW"... everything is clean!!!"$COLOR_NO_COLOUR
+}

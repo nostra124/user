@@ -1,0 +1,10 @@
+#!/bin/bash
+
+GREP_OPTIONS="-E --color=auto"
+if [ "$UID" = 0 ]; then
+    GREP_OPTIONS=""
+fi
+
+export GREP_OPTIONS
+alias grep="$(which grep) $GREP_OPTIONS"
+unset GREP_OPTIONS

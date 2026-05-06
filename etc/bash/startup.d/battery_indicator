@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# battery_indicator: echo a indicator for your battery-time 
+battery_indicator()
+{
+  local num=$(battery_life)
+
+  if [ $num -gt 95 ]; then
+    # 95-100% remaining : GREEN
+    echo -e "${COLOR_GREEN}♥♥♥♥♥♥${COLOR_NO_COLOUR}"
+  elif [ $num -gt 85 ]; then
+    # 85-95% remaining : GREEN
+    echo -e "${COLOR_GREEN}♥♥♥♥♥♡${COLOR_NO_COLOUR}"
+  elif [ $num -gt 65 ]; then
+    # 65-85% remaining : GREEN
+    echo -e "${COLOR_GREEN}♥♥♥♥♡♡${COLOR_NO_COLOUR}"
+  elif [ $num -gt 45 ]; then
+    # 45-65% remaining : GREEN
+    echo -e "${COLOR_GREEN}♥♥♥♡♡♡${COLOR_NO_COLOUR}"
+  elif [ $num -gt 25 ]; then
+    # 25-45% remaining : GREEN
+    echo -e "${COLOR_GREEN}♥♥♡♡♡♡${COLOR_NO_COLOUR}"
+  elif [ $num -gt 10 ]; then
+    # 11-25% remaining : YELLOW
+    echo -e "${COLOR_YELLOW}♥♡♡♡♡♡${COLOR_NO_COLOUR}"
+  else
+    # 0-10% remaining : RED
+    echo -e "${COLOR_RED}♥♡♡♡♡♡${COLOR_NO_COLOUR}"
+  fi
+}

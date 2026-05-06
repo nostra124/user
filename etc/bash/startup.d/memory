@@ -1,0 +1,65 @@
+#!/bin/bash
+
+function remember() {
+    mkdir -p $HOME/.cache/memory/data
+    mkdir -p $HOME/.cache/memory/meta
+
+    if [ ! -e "$HOME/.cache/memory/data.rec" ]; then
+	echo "%rec: Data"         >> "$HOME/.cache/memory/data.rec"
+	echo "%type: Id line"     >> "$HOME/.cache/memory/data.rec"
+	echo "%type: Tag line"    >> "$HOME/.cache/memory/data.rec"
+	echo "%key: Id"           >> "$HOME/.cache/memory/data.rec"
+    fi
+
+    if [ ! -e "$HOME/.cache/memory/meta.rec" ]; then
+	echo "%rec: Meta"         >> "$HOME/.cache/memory/meta.rec"
+	echo "%type: Id line"     >> "$HOME/.cache/memory/meta.rec"
+	echo "%type: Value line"  >> "$HOME/.cache/memory/meta.rec"
+#	echo "%type: From date"   >> "$HOME/.cache/memory/meta.rec"
+#	echo "%type: To date"     >> "$HOME/.cache/memory/meta.rec"
+	echo "%key: Id"           >> "$HOME/.cache/memory/meta.rec"
+    fi
+
+    VALUE=$1 && shift
+    VALUEFILE=$HOME/.cache/memory/data/$(echo $VALUE | sha1sum --text | sed 's/ *-$//')
+    if [ ! -e $VALUEFILE ]; then
+	echo "%rec: Data $HOME/.cache/memory/data.rec" >> $VALUEFILE
+    fi
+
+    if [ $(recsel --count --type="Data" --expression="Id = $VALUE" $VALUEFILE) -eq 0 ]; then
+	recins --verbose --type="Data" --name="Id" --value="$VALUE" $VALUEFILE
+    fi
+
+    while [ $# -gt 0 ]; do
+	TAG=$1 && shift
+	
+	if [ "$VALUE" -eq "$VALUE" ] 2>/dev/null; then
+	    recset --verbose --type="Data" --expression="Id = $VALUE" --field="Tag" --add="$TAG" $VALUEFILE
+	else
+	    recset --verbose --type="Data" --expression="Id = '$VALUE'" --field="Tag" --add="$TAG" $VALUEFILE
+	fi
+	TAGFILE=$HOME/.cache/memory/meta/$(echo $TAG | sha1sum --text | sed 's/ *-$//')
+	if [ ! -e $TAGFILE ]; then
+	    echo "%rec: Meta $HOME/.cache/memory/meta.rec" >> $TAGFILE
+	fi
+
+	if [ "$TAG" -eq "$TAG" ] 2>/dev/null; then
+	    if [ $(recsel --count --type="Meta" --expression="Id = $TAG" $TAGFILE) -eq 0 ]; then
+		recins --verbose --type="Meta" --name="Id" --value="$TAG" $TAGFILE
+	    fi
+
+	    recset --verbose --type="Meta" --expression="Id = $TAG" --field="Value" --add="$VALUE" $TAGFILE
+	else
+	    if [ $(recsel --count --type="Meta" --expression="Id = '$TAG'" $TAGFILE) -eq 0 ]; then
+		recins --verbose --type="Meta" --name="Id" --value="$TAG" $TAGFILE
+	    fi
+
+	    recset --verbose --type="Meta" --expression="Id = '$TAG'" --field="Value" --add="$VALUE" $TAGFILE
+	fi
+    done
+}
+
+#function retrieve_tags() {
+#    while [ $# -gt 0 ]; do
+#    done
+#}

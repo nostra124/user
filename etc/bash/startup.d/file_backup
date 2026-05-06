@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# file_backup: creating a backup of a file (with date)
+file_backup()
+{
+  for FILE ; do
+    [[ -e "$1" ]] && cp "$1" "${1}_$(date +%Y-%m-%d_%H-%M-%S)" || echo "\"$1\" not found." >&2
+  done
+}

@@ -1,0 +1,44 @@
+#!/bin/bash
+
+#xmlrpc_generate: generate XML.
+#    -m : Method name
+#    -p : Parameters
+#    -d : Delimiter used for parameters. ',' by default.
+#
+#ex: gen_xmlrpc  -m method -p 'parameter1:parameter2:...:parameterN'  -d':'
+xmlrpc_generate() {
+	XML="<?xml version=\"1.0\"?>
+<methodCall>"
+
+	delim=","
+
+	while getopts "d:m:p:" option
+	do
+    	case $option in
+		m )
+			method=$OPTARG
+			method="<methodName>$method</methodName>" ;;
+		p )
+			params=$OPTARG ;;
+		d )
+			delim=$OPTARG ;;
+		esac
+	done
+	old_IFS="$IFS"
+	IFS="$delim"
+	for param in $params
+	do
+		parameters="${parameters}
+      <param>
+        <value>$param</value>
+      </param>"
+	done
+	IFS="$old_IFS"
+
+	XML="${XML}
+	$method
+    <params>$parameters
+    </params>
+</methodCall>"
+	echo "$XML"
+}

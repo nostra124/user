@@ -1,0 +1,2 @@
+export TEXINPUTS=$HOME/.local/opt/pgfplots/:
+export TEXDOCS=$HOME/.local/opt/pgfplots/:

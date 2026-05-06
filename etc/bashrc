@@ -1,0 +1,121 @@
+#!/bin/bash
+
+export PATH="/usr/bin:/bin"
+
+############# STARTUP #######################################
+# try to load global-bashrc
+if [ -f /etc/bashrc ]; then
+	source /etc/bashrc
+fi
+
+if [ -f /etc/bash.bashrc ]; then
+	source /etc/bash.bashrc
+fi
+
+############# GENERAL STARTUP ###############################
+if [ -d $HOME/.local/etc/bash/startup.d ]; then
+    for file in $HOME/.local/etc/bash/startup.d/*; do
+        [ -f "$file" ] && source "$file"
+    done
+    unset file
+elif [ -d /usr/local/etc/bash/startup.d ]; then
+    for file in /usr/local/etc/bash/startup.d/*; do
+        [ -f "$file" ] && source "$file"
+    done
+    unset file
+fi
+
+############# INCLUDE ALIASES ###############################
+if [ -f $HOME/.bash_aliases ]; then
+	source $HOME/.bash_aliases
+fi
+
+############# INCLUDE FUNCTIONS #############################
+if [ -f $HOME/.bash_functions ]; then
+	source $HOME/.bash_functions
+fi
+
+############# CHECK PATH VARIABLE #########################
+if [ -d /usr/local/bin ]; then
+    if [[ ! ":$PATH:" == *":/usr/local/bin:"* ]]; then
+        export PATH="/usr/local/bin:$PATH"
+    fi
+fi
+
+if [ -e /etc/sudoers.d/$USER -o $(id -u) -eq 0 ]; then
+    if [ -d /sbin ]; then
+        if [[ ! ":$PATH:" == *":/sbin:"* ]]; then
+            export PATH="/sbin:$PATH"
+        fi
+    fi
+
+	if [ -d /usr/sbin ]; then
+		if [[ ! ":$PATH:" == *":/usr/sbin:"* ]]; then
+			export PATH="/usr/sbin:$PATH"
+		fi
+	fi
+
+	if [ -d /usr/local/sbin ]; then
+		if [[ ! ":$PATH:" == *":/usr/local/sbin:"* ]]; then
+			export PATH="/usr/local/sbin:$PATH"
+		fi
+	fi
+fi
+
+############# INCLUDE USER PROGRAMS #########################
+if [ -d $HOME/bin ]; then
+	export PATH="$HOME/bin:$PATH"
+fi
+
+if [ -d $HOME/.local/bin ]; then
+	export PATH="$HOME/.local/bin:$PATH"
+fi
+
+if [ -d $HOME/.local/opt ]; then
+	for DIR in $(ls $HOME/.local/opt); do
+		if [ -d $HOME/.local/opt/$DIR/bin ]; then
+			export PATH="$HOME/.local/opt/$DIR/bin:$PATH"
+		fi
+	done
+fi
+
+############# INCLUDE USER LIBRARIES ########################
+if [ -z ${LD_LIBRARY_PATH} ]; then
+	export LD_LIBRARY_PATH="/lib:/usr/lib:/usr/local/lib:/usr/lib/ure/lib:/usr/lib/libreoffice/sdk/lib"
+fi
+
+if [ -d $HOME/lib ]; then
+	export LD_LIBRARY_PATH="$HOME/lib:$LD_LIBRARY_PATH"
+fi
+
+if [ -d $HOME/.local/lib ]; then
+	export LD_LIBRARY_PATH="$HOME/.local/lib:$LD_LIBRARY_PATH"
+fi
+
+if [ -d $HOME/.local/opt ]; then
+	for DIR in $(ls $HOME/.local/opt); do
+		if [ -d $HOME/.local/opt/$DIR/lib ]; then
+			export LD_LIBRARY_PATH="$HOME/.local/opt/$DIR/lib:$LD_LIBRARY_PATH"
+		fi
+	done
+fi
+
+############# SYSTEM PROXY CONFIGURATION ####################
+if [ -f /etc/bash_proxy ]; then
+	source /etc/bash_proxy
+fi
+
+############# HOST SPECIFIC #################################
+HOST=$(hostname -f | tr '[:upper:]' '[:lower:]')
+[ -d $HOME/.local/etc/bash/hosts.d/${HOST} ] && for file in $HOME/.local/etc/bash/hosts.d/${HOST}/*; do
+	[ -f "$file" ] && source "$file"
+done
+unset file
+
+# Local variables:
+# mode: shell-script
+# sh-basic-offset: 4
+# sh-indent-comment: t
+# indent-tabs-mode: nil
+# End:
+# ex: ts=4 sw=4 et filetype=sh

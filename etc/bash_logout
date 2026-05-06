@@ -1,0 +1,17 @@
+# ~/.bash_logout: executed by bash(1) when login shell exits.
+
+# Save the working directory before logout
+echo "$(pwd)" > ~/.last-working-directory
+
+# when leaving the console clear the screen to increase privacy
+case "`tty`" in
+    /dev/vc/[0-9]) clear; # linux kernel >= 2.6.*
+esac
+
+# Local variables:
+# mode: shell-script
+# sh-basic-offset: 4
+# sh-indent-comment: t
+# indent-tabs-mode: nil
+# End:
+# ex: ts=4 sw=4 et filetype=sh

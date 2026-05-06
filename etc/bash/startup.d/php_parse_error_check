@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# php-parse-error-check: check for parse errors
+#
+# usage: php_parse_error_check /var/www/web3/
+php_parse_error_check()
+{
+  if [ $1 ]; then
+    local location=$1
+  else
+    local location="."
+  fi
+
+  find ${location} -name "*.php" -exec php -l {} \; | grep "Parse error"
+}

@@ -1,0 +1,2 @@
+# make the "sudo" prompt more useful, without requiring access to "visudo"
+export SUDO_PROMPT='[sudo] password for %u on %h: ';

@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [ -x /usr/bin/dircolors ]; then
+	test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+fi
+
+if [ $(uname) = "Linux" ]; then
+	LS_OPTIONS="-hFN --color=auto"
+	if [ "$UID" = 0 ]; then
+		LS_COLORS==""
+		LS_OPTIONS="-N --color=auto"
+	fi
+	export LS_OPTIONS
+
+	alias ls='ls --color=auto'
+fi

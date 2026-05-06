@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# make less the default pager
+export PAGER="less"
+
+# make less the default pager, and specify some useful defaults
+less_options=(
+	# Causes  searches  to ignore case. This option is ignored if any 
+	# uppercase letters appear in the search pattern
+	--ignore-case
+
+	# If the entire text fits on one screen, just show it and quit. (Be more
+	# like "cat" and less like "more".)
+	# --quit-if-one-screen
+
+	# Do not clear the screen first.
+	--no-init
+
+	# Like "smartcase" in Vim: ignore case unless the search pattern is mixed.
+	--ignore-case
+
+	# Do not automatically wrap long lines.
+	--chop-long-lines
+
+	# Causes "raw" control characters to be displayed.
+	--raw-control-chars
+
+	# Allow ANSI colour escapes, but no other escapes.
+	--RAW-CONTROL-CHARS
+
+	# Sets  tab  stops.
+	--tabs=4
+
+	# Specifies  the  default number of positions to scroll horizontally in the RIGHTARROW and LEFTARROW commands.
+	--shift 5
+
+	# Do not ring the bell when trying to scroll past the end of the buffer.
+	--quiet
+
+	# Do not complain when we are on a dumb terminal.
+	--dumb
+);
+export LESS="-M ${less_options[*]}";
+unset less_options;
+
+# highlight section titles in manual pages
+export LESSHISTFILE="-"     # no less history file
+if [ "$UID" != 0 ]; then
+	export LESSCHARSET="utf-8"
+	if [ -z "$LESSOPEN" ]; then
+		[ -x "`which lesspipe 2>/dev/null`" ] && eval "$(lesspipe)"
+	fi
+
+	# yep, 'less' can colorize manpages
+	export LESS_TERMCAP_mb=$'\E[01;31m'
+	export LESS_TERMCAP_md=$'\E[01;31m'
+	export LESS_TERMCAP_me=$'\E[0m'
+	export LESS_TERMCAP_se=$'\E[0m'                           
+	export LESS_TERMCAP_so=$'\E[01;44;33m'                                 
+	export LESS_TERMCAP_ue=$'\E[0m'
+	export LESS_TERMCAP_us=$'\E[01;32m'
+fi
+
+# don’t clear the screen after quitting a manual page
+export MANPAGER="less -X"
+
+# make less more friendly for non-text input files, see lesspipe(1)
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"

@@ -1,0 +1,9 @@
+
+if [ -d $HOME/Library/Android ]; then
+	export PATH=$PATH:$HOME/Library/Android/sdk/emulator
+	export PATH=$PATH:$HOME/Library/Android/sdk/cmdline-tools/latest/bin
+	export PATH=$PATH:$HOME/Library/Android/sdk/platform-tools
+	export ANDROID_HOME=$HOME/Library/Android/sdk
+	export ANDROID_SDK_ROOT=~/Library/Android/sdk
+	export ANDROID_AVD_HOME=~/.android/avd
+fi

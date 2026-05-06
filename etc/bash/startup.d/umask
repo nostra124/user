@@ -1,0 +1,5 @@
+if [ -e /usr/bin/cygpath ]; then
+	umask 000
+else
+	umask 007
+fi

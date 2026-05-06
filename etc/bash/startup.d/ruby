@@ -1,0 +1,14 @@
+#!/bin/bash
+
+#if [ -f /usr/bin/ruby ]; then
+#	PREFIX=$HOME/.ruby
+#	export GEM_HOME=$PREFIX/lib/ruby/gems/1.8 
+#	export RUBYLIB=$PREFIX/local/lib/ruby:$PREFIX/local/lib/site_ruby/1.8	
+#	export PATH="$HOME/.ruby/bin:$PATH"
+#	/bin/mkdir -p "$RUBYLIB"
+#	/bin/mkdir -p "$GEM_HOME"
+#fi
+
+#if which ruby >/dev/null 2>&1 && which gem >/dev/null 2>&1; then
+#	export PATH="$(ruby -rubygems -e 'puts Gem.user_dir')/bin:$PATH"
+#fi

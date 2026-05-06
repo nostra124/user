@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if [ -f /usr/bin/ccache ]; then
+	export CC="ccache gcc"
+	export CXX="ccache g++"
+
+	if [ -f /usr/bin/distcc ]; then
+		CCACHE_PREFIX=distcc
+	fi
+else
+	if [ -f /usr/bin/distcc ]; then
+		CC="distcc gcc"
+		CXX="ccache g++"
+  fi
+fi

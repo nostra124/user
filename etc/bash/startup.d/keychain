@@ -1,0 +1,11 @@
+if [ -f /usr/bin/keychain ]; then
+	keychain --quiet
+	host=$(uname -n)
+	if [ -f $HOME/.keychain/$host-sh ]; then
+		source $HOME/.keychain/$host-sh
+	fi
+        
+	if [ -f $HOME/.keychain/$host-sh-gpg ]; then
+		source $HOME/.keychain/$host-sh-gpg
+	fi
+fi

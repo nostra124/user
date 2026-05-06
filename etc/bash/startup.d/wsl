@@ -1,0 +1,5 @@
+#!/bin/bash
+
+if grep -qEi "(Microsoft|WSL)" /proc/version &> /dev/null ; then
+	service ssh status > /dev/null || sudo service ssh start
+fi

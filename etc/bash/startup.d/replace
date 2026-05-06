@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# WARNING -> replace: changes multiple files at once
+replace()
+{
+  if [ $3 ]; then
+    find $1 -type f -exec sed -i 's/$2/$3/g' {} \;
+  else
+    echo "Missing argument"
+  fi
+}

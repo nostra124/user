@@ -1,0 +1,12 @@
+#!/bin/sh
+
+function sshknownhosts {
+	if [ $1 ]; then
+		sed -i ${1}d ~/.ssh/known_hosts
+		sed -i ${1}d ~/.ssh/known_hosts
+		echo "Zeile ${1} geloescht"
+	else
+		echo "Bitte Zeilennummer angeben"
+	fi
+}
+

@@ -1,0 +1,24 @@
+#!/bin/sh
+
+if [ -e /usr/bin/cygpath ]; then
+	PORTABLE=$(/usr/bin/cygpath -w /); PORTABLE="$PORTABLE\\..\\.."
+	PORTABLE=$(dirname $(/usr/bin/cygpath -u $PORTABLE))
+	NEXTCLOUD="$PORTABLE/NextCloud/driessel.us.to"
+	echo $NEXTCLOUD
+
+	if [ -d ${NEXTCLOUD} ]; then
+		DOCUMENTS="$NEXTCLOUD/Documents";   ln --symbolic --force --target-directory=$HOME $DOCUMENTS
+	fi
+	
+	if [ -d ${PORTABLE} ]; then
+		DOWNLOADS="$PORTABLE/Documents/Downloads";    ln --symbolic --force --target-directory=$HOME $DOWNLOADS
+		MUSIC="$PORTABLE/Documents/Music";            ln --symbolic --force --target-directory=$HOME $MUSIC
+		PROJECTS="$PORTABLE/Documents/Projects";      ln --symbolic --force --target-directory=$HOME $PROJECTS
+		PICTURES="$PORTABLE/Documents/Pictures";      ln --symbolic --force --target-directory=$HOME $PICTURES
+		VIDEOS="$PORTABLE/Documents/Videos";          ln --symbolic --force --target-directory=$HOME $VIDEOS
+	fi
+	
+	export PATH="~/.config/bash/cygwin.d:${PATH}"
+	# set the locale based on the windows locale
+	export LANG=$(locale -uU)
+fi

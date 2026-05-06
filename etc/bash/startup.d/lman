@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# lman: Open the manual page for the last command you executed.
+lman() 
+{
+  set -- $(fc -nl -1)
+  while [ $# -gt 0 -a '(' "sudo" = "$1" -o "-" = "${1:0:1}" ')' ]; do
+    shift
+  done
+  cmd="$(basename "$1")"
+  man "$cmd" || help "$cmd"
+}

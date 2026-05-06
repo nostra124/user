@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#gen_xmlrpc : execute the request
+#    first argument : the XML
+#    second argument : URL
+#
+#ex: gen_xmlrpc "$XML" url.to/some/xmlrpcservice
+xmlrpc_send() {
+	xml=$1
+	rpcproxy=$2
+
+	wget --header=Content-Type:text/xml -qO - --no-check-certificate --post-data "$xml" "$rpcproxy" | xml2
+}

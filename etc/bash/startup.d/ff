@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# ff: displays all files in the current directory (recursively)
+ff() 
+{
+  find . -type f -iname '*'$*'*' -ls
+}

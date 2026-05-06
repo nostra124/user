@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# file_information: output information to a file
+file_information() 
+{
+  if [ $1 ]; then
+    if [ -z $1 ]; then 
+      echo "$1: not found"
+      return
+    fi
+
+    echo $1
+    ls -l $1
+    file $1
+    ldd $1
+  else
+    echo "Missing argument"
+  fi
+}

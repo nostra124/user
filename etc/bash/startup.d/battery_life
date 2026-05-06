@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# battery_life : Echo the percentage of battery life remaining
+battery_life ()
+{
+  local life=$(acpi -b | cut -d "," -f 2)
+  # NOTE: the trailing % is stripped
+  echo ${life%\%}
+}

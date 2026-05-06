@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# note: add a note to the ~/notes.txt file
+#
+# usage -> `note 'title' 'body'` or `echo 'body' | note`
+note() 
+{
+  local title
+  local body
+
+  if [ -t 0 ]; then
+    title="$1"
+    body="$2"
+  else
+    title=$(cat)
+  fi
+
+  echo "Title: ${title} Body: ${body}" >> ~/notes.txt
+}

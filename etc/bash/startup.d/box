@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# box: a function to create a box of '=' characters around a given string
+#
+# usage: box 'testing'
+box() 
+{ 
+  local t="$1xxxx"
+  local c=${2:-#}
+ 
+  echo ${t//?/$c}
+  echo "$c $1 $c" 
+  echo ${t//?/$c} 
+}

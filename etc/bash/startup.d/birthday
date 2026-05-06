@@ -1,0 +1,5 @@
+if [ -f /usr/bin/birthday ]; then
+	if [ -f /home/rene/.birthdays ]; then
+		/usr/bin/birthday
+	fi
+fi

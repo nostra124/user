@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------
+# iptables_block_ip: block a IP via "iptables"
+#
+# usage: iptables_block_ip 8.8.8.8
+iptables_block_ip()
+{
+  if [ "`id -u`" == "0" ] ; then
+    iptables -A INPUT -s $1 -j DROP
+  else
+    sudo iptables -A INPUT -s $1 -j DROP
+  fi
+}

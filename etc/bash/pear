@@ -1,0 +1,6 @@
+#!/bin/bash
+
+if [ -d "$HOME/Library/Application Support/pear/bin" ]; then
+	export PATH="$HOME/Library/Application Support/pear/bin:$PATH"
+fi
+
