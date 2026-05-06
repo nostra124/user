@@ -1,0 +1,115 @@
+.\" Manpage for user(1).
+.TH USER 1 "May 2026" "scripts" "User Commands"
+
+.SH NAME
+user \- system-user manager + frontend for per-user sub-services
+
+.SH SYNOPSIS
+.B user
+.RI [ options ]
+.I command
+.RI [ args ...]
+.br
+.B user
+.I user
+.I sub-service
+.I verb
+.RI [ args ...]
+
+.SH DESCRIPTION
+.B user
+manages system users and acts as a
+.B frontend
+for per-user sub-services. The frontend pattern
+(per FEAT-148):
+
+.PP
+.B user <sub-service> <verb>
+runs as the current user.
+.br
+.B user <user> <sub-service> <verb>
+runs as
+.I <user>
+via
+.BR sudo (1).
+
+Sub-services live as plugins under
+.IR libexec/user/<sub-service>/ .
+
+.SH SUBCOMMANDS
+
+.SS System-level (existing)
+.TP
+.B help / version
+.TP
+.B list
+List known system users.
+.TP
+.BI "create " user
+Create
+.I user
+with the canonical home (`/var/lib/<user>` on Linux,
+`/srv` for the special `srv` user, `/obj` for `obj`).
+.TP
+.BI "delete " user
+Delete the user and home.
+.TP
+.BI "add " user " " group
+Add the user to a group.
+.TP
+.BI <user> " exec"
+Read a script from stdin and run as
+.IR <user> .
+
+.SS Sub-services
+.TP
+.B git
+The canned git-hosting account setup
+(libexec/user/git, FEAT-167 already done).
+.TP
+.B srv
+The canned service-hosting account setup
+(libexec/user/srv).
+.TP
+.B mails
+Mail filtering integration (FEAT-149 — relocates
+.BR bin/mailfilter ;
+pending implementation).
+.TP
+.B api
+Provider API integration (FEAT-150 — relocates
+.BR bin/api ;
+pending implementation).
+.TP
+.B shell
+Dotfiles + shell startup.d as a curated installer
+(FEAT-184; pending).
+
+.SH ENVIRONMENT
+.TP
+.B SELF_DEBUG
+Enable shell tracing.
+.TP
+.B SELF_QUIET
+Suppress informational output.
+
+.SH FILES
+.TP
+.IR /var/lib/<user>/
+The canonical Linux home directory.
+.TP
+.I libexec/user/<sub-service>/
+Per-sub-service plugin (git, srv, mails, api, shell).
+
+.SH EXIT STATUS
+0 on success; non-zero on failure.
+
+.SH SEE ALSO
+.BR account (1),
+.BR sudo (1),
+.BR adduser (8).
+
+.SH BUGS
+Report at
+.UR https://github.com/nostra124/scripts/issues
+.UE .

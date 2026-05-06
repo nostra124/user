@@ -1,0 +1,470 @@
+#!/bin/bash
+
+############################################################################
+# Configuration section
+############################################################################
+
+############################################################################
+
+# This should always be the first line of code to facilitate debugging
+[ -n "$SELF_DEBUG" ] && set -vx
+
+VERSION='0.6'
+SELF=$(basename $0)
+
+die() {
+	echo "$1" >&2
+	exit "${2:-1}"
+}
+
+fatal() {
+	echo "$SELF: fatal - $1" >&2
+	exit "${2:-1}"
+}
+
+debug() {
+        [ -n "$SELF_DEBUG" ] && echo "$SELF: debug - $@" >&2
+}
+
+info() {
+        if [ ! -n "$SELF_QUIET" ]; then echo -e "$SELF: info - \033[33;m$@\033[0m" >&2; fi
+}
+
+warn() {
+        echo -e "$SELF: warn - \033[31;1;m$@\033[0m" >&2
+}
+
+# checks if a certain function exists: eg. has command update
+has() {
+    local KIND=$1
+    local NAME=$2
+
+    type -t $KIND:$NAME | grep -q function
+}
+
+# We need to run getops as soon as possible so we catch -d and other
+# options that will modify our behaviour.
+# Commands are handled at the end of this script.
+
+while getopts "c:dq" flag; do
+	if [ x"$1" = x'-q' ]; then
+		SELF_QUIET=1
+	fi
+	if [ x"$1" = x'-d' ]; then
+		SELF_DEBUG=1
+	fi
+	shift 1
+done
+
+# Read configuration and set defaults if anything's not set
+: ${XDG_CONFIG_HOME:="~/.config"}
+: ${XDG_CACHE_HOME:="~/.cache"}
+: ${XDG_DATA_HOME:="~/.local/var"}
+: ${XDG_SHARE_HOME:="~/.local/share"}
+
+eval SELF_DATA=${XDG_DATA_HOME}/${SELF} && mkdir -p ${SELF_DATA}
+
+
+[ -n "$SELF_VERBOSE" ] && set -vx
+
+command:help() {
+	if [[ $# != 0 ]]; then
+		if ! has command $1; then
+			echo "'$1' is not an $SELF command"
+			echo ""
+			echo "please see '$SELF help'"
+			exit -1
+		elif ! has help $1; then
+			echo "No help found for '$1'"
+			echo ""
+			echo "please see '$SELF help'"
+			exit -2
+		else
+			help:$1
+			return 0
+		fi
+	else
+		cat >&2 <<ENDHELP
+usage: $SELF <options> <command>
+
+   options:
+   -d                             Enable debug output
+   -q                             Enable quiet mode
+
+   $SELF helps to manage your Kraken account. You can deposit and withdraw 
+   funds, as well as creating and managing spot orders. To keep the interface
+   simple the focus is on the most common tasks. Specific APIs can be called 
+   via the two methods public-call and private-call. 
+   
+   See also https://docs.kraken.com/rest/
+
+generic commands:
+   help                           print this help message
+   help <command>                 prints command specific help.  
+   version                        print the version of $SELF
+
+   api-key [key]                  set or get the api-key
+   private-key [token]            set or get the private-key
+
+public data:
+   public <method> [args]         executes a call to the public api method
+   time                           get the Kraken server time stamp
+   status                         get the Kraken system status
+   assets                         get a table of the available assets
+   markets                        get a table of the available markets
+   candles <market> [interval]    get a table of market candles (in minutes) 
+   spreads <market>               get a table of markets spreads (last 200)
+   book <market>                  get a table of the order book
+
+authentificated data:
+   private <method> [args]        executes a call to the public api method
+   balance                        shows the account balance as table
+
+   deposit                        shows the deposit addresses
+   deposits [year]                shows the deposits
+
+   withdraw                       shows the withdrawel keys per asset
+   withdraw <asset> <key> <value> withdraw funds through the withdrawel key
+   withdrawels [year]             shows the withdrawels
+
+   bid <market> <vol> [t] [limit] create bid order (buy base, sell quote)
+   ask <market> <vol> [t] [limit] create ask order (sell base, buy quote)
+   orders                         shows the open orders
+   cancel <order>                 cancels the given order <order>
+   trades <year>                  shows the closed trades for the given year
+ENDHELP
+	fi
+}
+
+command:version() {
+        echo "$VERSION"
+}
+
+command:api-key() {
+	local KEY=$1
+	if [ -z "$KEY" ]; then
+		secret -u get $SELF/api-key
+	else
+		secret -u init $SELF
+		echo "$KEY" |  secret -r set $SELF/api-key
+	fi
+}
+
+command:private-key() {
+	local KEY=$1
+	if [ -z "$KEY" ]; then
+		secret -u get $SELF/private-key
+	else
+		secret -u init $SELF
+		echo "$KEY" |  secret -r set $SELF/private-key
+	fi
+}
+
+command:public() {
+	local URIPATH=/0/public/$1
+
+	shift
+	local GETDATA=""
+	for PARAM in $@; do
+		if [ -z "$GETDATA" ]; then
+			local GETDATA="$PARAM"
+		else
+			local GETDATA="$GETDATA&$PARAM"
+		fi
+	done
+
+	if [ -z "$GETDATA" ]; then
+		curl -s "https://api.kraken.com$URIPATH" | jq
+	else
+		curl -s "https://api.kraken.com$URIPATH?$GETDATA" | jq
+	fi
+}
+
+command:time() {
+	command:public Time | jq -r '.result.unixtime'
+}
+
+command:status() {
+	command:public SystemStatus | jq -r '.result.status'
+}
+
+command:assets() {
+	if [ -t 1 ] ; then
+		{
+			echo -e "Asset\tStatus"
+			command:public Assets | jq -r '.result | to_entries[] | [.key, .value.status ] | @tsv'
+		} | column -ts $'\t'
+	else
+		command:public Assets | jq -r '.result | to_entries[] | [.key, .value.status ] | @tsv'
+	fi
+}
+
+command:markets() {
+	if [ -t 1 ] ; then
+		{
+			echo -e "Market\tBase\tQuote"
+			command:public AssetPairs | jq -r '.result | to_entries[] | [.key, .value.base, .value.quote ] | @tsv'
+		} | column -ts $'\t'
+	else
+		command:public AssetPairs | jq -r '.result | to_entries[] | [.key, .value.base, .value.quote ] | @tsv'
+	fi
+}
+
+command:candles() {
+	local MARKET=$1    && test -z "$MARKET"   && fatal "please specify a market" -1
+	local INTERVAL=$2  && test -z "$INTERVAL" && local INTERVAL=1440
+	if [ -t 1 ] ; then
+		{
+			echo -e "Time\tOpen\tHigh\tLow\tClose\tVolume\tCount"
+			command:public OHLC pair=$MARKET interval=$INTERVAL | 
+				jq -r '.result | del(.last) | to_entries[] | .value[] | [.[0],.[1],.[2],.[3],.[4],.[6], .[7] ] | @tsv'
+		} | column -ts $'\t'
+	else
+		command:public OHLC pair=$MARKET interval=$INTERVAL | 
+			jq -r '.result | del(.last) | to_entries[] | .value[] | [.[0],.[1],.[2],.[3],.[4],.[6], .[7] ] | @tsv'
+	fi
+}
+
+command:spreads() {
+	local MARKET=$1 && test -z "$MARKET" && fatal "please specify a market" -1
+	if [ -t 1 ] ; then
+		{
+			echo -e "Time\tBid\tAsk"
+			command:public Spread pair=$MARKET | jq -r '.result | del(.last) | to_entries[] | .value[] | @tsv'
+		} | column -ts $'\t'
+	else
+		command:public Spread pair=$MARKET | jq -r '.result | del(.last) | to_entries[] | .value[] | @tsv'
+	fi
+}
+
+command:book() {
+	local MARKET=$1
+	test -z "$MARKET" && fatal "please specify a market. See $SELF markets"
+
+	local JSON=$(mktemp)
+	local TABLE=$(mktemp)
+	command:public Depth pair=$MARKET count=500 > $JSON
+	cat $JSON | jq -r '.result | getpath(keys) | .bids[] | [ .[0,1], "bid" ] | @tsv'  >> $TABLE
+	cat $JSON | jq -r '.result | getpath(keys) | .asks[] | [ .[0,1], "ask" ] | @tsv' >> $TABLE
+	if [ -t 1 ] ; then
+		{
+			echo -e "Price\tVolume\tType"
+			sort --reverse $TABLE
+		} | column -ts $'\t'
+	else
+		sort --reverse $TABLE
+	fi
+	rm $JSON $TABLE
+}
+
+command:private() {
+	local URIPATH=/0/private/$1
+	local NONCE=$(date +%s%N)
+	
+	shift
+	local POSTDATA="nonce=$NONCE"
+	for PARAM in $@; do
+		local POSTDATA="$POSTDATA&$PARAM"
+	done
+
+	local TMP=$(mktemp)
+	echo -n "$URIPATH" > $TMP
+	echo -n "${NONCE}${POSTDATA}" | openssl sha256 -binary >> $TMP
+	PRIVATEKEYHEX=$(command:private-key | base64 -d | hexdump -v -e '/1 "%02X"');
+	APISIGN=$(cat $TMP | openssl sha512 -binary -mac HMAC -macopt hexkey:${PRIVATEKEYHEX} | base64 -w 0)
+	rm $TMP
+
+	curl -s -X "POST"  https://api.kraken.com${URIPATH} \
+		-H "API-Key: $(command:api-key)" \
+		-H "API-Sign: ${APISIGN}" \
+		-H 'Content-Type: application/x-www-form-urlencoded; charset=utf-8' \
+		--data "$POSTDATA" | jq
+}
+
+command:balance() {
+	if [ -t 1 ] ; then
+		{
+			echo -e "Asset\tBalance\tLocked"
+			command:private BalanceEx | jq -r '.result | to_entries[] | [.key, .value.balance, .value.hold_trade ] | @tsv' 
+		} | column -ts $'\t'
+	else
+		command:private BalanceEx | jq -r '.result | to_entries[] | [.key, .value.balance, .value.hold_trade ] | @tsv'
+	fi
+}
+
+command:deposit() {
+	IFS=$'\n'
+
+	if [ -t 1 ] ; then
+		{ echo -e "Asset\tMethod\tAddress"
+		for ASSET in $(command:balance | cut -f1); do
+			for METHOD in $(command:private DepositMethods asset=$ASSET | jq -r '.result[] | [.method ] | @tsv'); do
+				for ADDRESS in $(command:private DepositAddresses asset="$ASSET" method="$METHOD" | jq -r '.result[] | [.address] | @tsv'); do
+					echo -e "$ASSET\t$METHOD\t$ADDRESS"
+				done
+			done
+		done } | column -ts $'\t'
+	else
+		for ASSET in $(command:balance | cut -f1); do
+			for METHOD in $(command:private DepositMethods asset=$ASSET | jq -r '.result[] | [.method ] | @tsv'); do
+				for ADDRESS in $(command:private DepositAddresses asset="$ASSET" method="$METHOD" | jq -r '.result[] | [.address] | @tsv'); do
+					echo -e "$ASSET\t$METHOD\t$ADDRESS"
+				done
+			done
+		done
+	fi
+}
+
+command:deposits() {
+	local YEAR=$1
+	if [ -z "$YEAR" ]; then
+		if [ -t 1 ] ; then
+			{
+				echo -e "Asset\tAmount\tFee\tTime\tRefId\tStatus"
+				command:private DepositStatus | jq -r '.result[] | [.asset, .amount, .fee, .time, .refid, .status] | @tsv'
+			} | column -ts $'\t'
+		else
+			command:private DepositStatus | jq -r '.result[] | [.asset, .amount, .fee, .time, .refid, .status] | @tsv'
+		fi
+	else
+		local START=$(date -d "$YEAR-01-01" +%s)
+		local END=$(date -d "$YEAR-12-13" +%s)
+		if [ -t 1 ] ; then
+			{
+				echo -e "Asset\tAmount\tFee\tTime\tRefId\tStatus"
+				command:private DepositStatus start=$START end=$END | jq -r '.result[] | [.asset, .amount, .fee, .time, .refid, .status] | @tsv'
+			} | column -ts $'\t'
+		else
+			command:private DepositStatus start=$START end=$END | jq -r '.result[] | [.asset, .amount, .fee, .time, .refid, .status] | @tsv'
+		fi
+	fi
+}
+
+command:withdraw() {
+	if [[ $# -eq 0 ]]; then
+		if [ -t 1 ] ; then
+			{
+				echo -e "Asset\tKey\tAddress"
+				command:private WithdrawAddresses | jq -r '.result[] | [.asset ,.key, .address] | @tsv' 
+			} | column -ts $'\t'
+		else
+			command:private WithdrawAddresses | jq -r '.result[] | [.asset ,.key, .address] | @tsv'
+		fi
+	else
+		local ASSET=$1  && test -z "$ASSET"  && fatal "please specify an asset" -1
+		local KEY=$2    && test -z "$KEY"    && fatal "please specify an withdrawal key" -1
+		local AMOUNT=$3 && test -z "$AMOUNT" && fatal "please specify an amount" -1
+		command:private Withdraw asset="$ASSET" key="$KEY" amount="$AMOUNT" | jq -r '.result.refid'
+	fi
+	return 0
+}
+
+command:withdrawels() {
+	local YEAR=$1
+	if [ -z "$YEAR" ]; then
+		if [ -t 1 ] ; then
+			{
+				echo -e "Asset\tAmount\tFee\tTime\tRefId\tStatus\tKey"
+				command:private WithdrawStatus | jq -r '.result[] | [.asset, .amount, .fee, .time, .refid, .status, .key] | @tsv'
+			} | column -ts $'\t'
+		else
+			command:private WithdrawStatus | jq -r '.result[] | [.asset, .amount, .fee, .time, .refid, .status, .key] | @tsv'
+		fi
+	else
+		local START=$(date -d "$YEAR-01-01" +%s)
+		local END=$(date -d "$YEAR-12-13" +%s)
+		if [ -t 1 ] ; then
+			{
+				echo -e "Asset\tAmount\tFee\tTime\tRefId\tStatus\tKey"
+				command:private WithdrawStatus start=$START end=$END | jq -r '.result[] | [.asset, .amount, .fee, .time, .refid, .status, .key] | @tsv'
+			} | column -ts $'\t'
+		else
+			command:private WithdrawStatus start=$START end=$END | jq -r '.result[] | [.asset, .amount, .fee, .time, .refid, .status, .key] | @tsv'
+		fi
+	fi
+}
+
+command:bid() {
+	local MARKET=$1 && test -z "$MARKET" && fatal "please specify a market" -1
+	local VOLUME=$2 && test -z "$VOLUME" && fatal "please specify an amount of the base asset" -1
+	local TIME=$3
+	local PRICE=$4
+	if [ -z "$TIME" ]; then
+		command:private AddOrder pair=$MARKET type=buy ordertype=market volume=$VOLUME
+	else
+		local PRICE=$4 && test -z "$PRICE" && fatal "please specify a limit for a time limited order" -1
+		command:private AddOrder pair=$MARKET type=buy ordertype=limit volume=$VOLUME price=$PRICE expiretm=+$TIME
+	fi
+}
+
+command:ask() {
+	local MARKET=$1 && test -z "$MARKET" && fatal "please specify a market" -1
+	local VOLUME=$2 && test -z "$VOLUME" && fatal "please specify an amount of the base asset" -1
+	local TIME=$3
+	if [ -z "$TIME" ]; then
+		command:private AddOrder pair=$MARKET type=sell ordertype=market volume=$VOLUME
+	else
+		local PRICE=$4 && test -z "$PRICE" && fatal "please specify a limit for a time limited order" -1
+		command:private AddOrder pair=$MARKET type=sell ordertype=limit volume=$VOLUME price=$PRICE expiretm=+$TIME
+	fi
+}
+
+command:cancel() {
+	for ORDER in $@; do
+		command:private CancelOrder txid=$ORDER | jq
+	done
+}
+
+command:orders() {
+	if [ -t 1 ] ; then
+		{
+			echo -e "Order\tMarket\tStatus\tStart\tExpire\tType\tVolume\tCost\tFee\tPrice"
+			command:private OpenOrders | jq -r '.result.open | to_entries[] | [.key, .value.descr.pair, .value.status, .value.starttm, .value.expiretm, .value.descr.type, .value.vol, .value.cost, .value.fee, .value.descr.price] | @tsv'
+		} | column -ts $'\t'
+	else
+		command:private OpenOrders | jq -r '.result.open | to_entries[] | [.key, .value.descr.pair, .value.status, .value.starttm, .value.expiretm, .value.descr.type, .value.vol, .value.cost, .value.fee, .value.descr.price] | @tsv'
+	fi
+}
+
+command:trades() {
+	local YEAR=$1
+	if [ -z "$YEAR" ]; then
+		if [ -t 1 ] ; then
+			{
+				echo -e "Market\tTime\tTxId\tType\tPrice\tCost\tFee\tVolume\tMaker"
+				command:private TradesHistory | jq -r '.result.trades[] | [.pair, .time, .postxid, .type, .price, .cost, .fee, .vol, .maker] | @tsv'
+			} | column -ts $'\t'
+		else
+			command:private TradesHistory | jq -r '.result.trades[] | [.pair, .time, .postxid, .type, .price, .cost, .fee, .vol, .maker] | @tsv'
+		fi
+	else
+		local START=$(date -d "$YEAR-01-01" +%s)
+		local END=$(date -d "$YEAR-12-13" +%s)
+		if [ -t 1 ] ; then
+			{
+				echo -e "Market\tTime\tTxId\tType\tPrice\tCost\tFee\tVolume\tMaker"
+				command:private TradesHistory start=$START end=$END | jq -r '.result.trades[] | [.pair, .time, .postxid, .type, .price, .cost, .fee, .vol, .maker] | @tsv'
+			} | column -ts $'\t'
+		else
+			command:private TradesHistory start=$START end=$END | jq -r '.result.trades[] | [.pair, .time, .postxid, .type, .price, .cost, .fee, .vol, .maker] | @tsv'
+		fi
+	fi
+}
+
+#------------------------------------------------------------------------------
+# Command-line processing
+if [[ $# == 0 ]]; then
+	command:help
+	exit
+fi
+
+#------------------------------------------------------------------------------
+# If this is a builtin command, execute it, otherwise fall through
+if has command $1; then
+	debug "executing command:$1 ${@:2}"
+	command:$1 "${@:2}" # array slice skipping first element
+	exit $?
+else
+	command:help
+	exit $?
+fi

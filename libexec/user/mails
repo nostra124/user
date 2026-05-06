@@ -1,0 +1,292 @@
+#!/bin/bash
+
+############################################################################
+# Configuration section
+############################################################################
+
+############################################################################
+
+# This should always be the first line of code to facilitate debugging
+[ -n "$SELF_DEBUG" ] && set -vx
+
+VERSION='0.2'
+SELF=$(basename $0)
+
+die() {
+	echo "$1" >&2
+	exit 0
+}
+
+fatal() {
+	echo "$SELF - fatal: $1" >&2
+	if [ -r $2 ]; then
+		exit 1
+	else 
+		exit $2
+	fi
+}
+
+debug() {
+        [ -n "$SELF_DEBUG" ] && echo "$SELF - debug: $@" >&2
+}
+
+verbose() {
+        if [ -n "$SELF_DEBUG" ] || [ -n "$SELF_VERBOSE" ]; then echo "$SELF - verbose: $@" >&2; fi
+}
+
+error() {
+        echo "$SELF - error: $1" >&2
+}
+
+info() {
+        echo "$SELF - info: $1"
+}
+
+# checks if a certain function exists: eg. has command update
+has() {
+    local KIND=$1
+    local NAME=$2
+
+    type -t $KIND:$NAME | grep -q function
+}
+
+# We need to run getops as soon as possible so we catch -d and other
+# options that will modify our behaviour.
+# Commands are handled at the end of this script.
+
+while getopts "c:dvf" flag; do
+	if [ x"$1" = x'-v' ]; then
+		SELF_VERBOSE=1
+		echo "$SELF $VERSION"
+	fi
+	if [ x"$1" = x'-d' ]; then
+		SELF_DEBUG=1
+		echo "$SELF $VERSION"
+	fi
+	if [ x"$1" = x'-f' ]; then
+		SELF_FORCE=1
+	fi
+	shift 1
+done
+
+# Read configuration and set defaults if anything's not set
+: ${XDG_CONFIG_HOME:="$HOME/.config"}
+: ${XDG_CACHE_HOME:="$HOME/.cache"}
+
+SELF_CONFIG=${XDG_CONFIG_HOME}/$SELF
+
+[ -n "$SELF_VERBOSE" ] && set -vx
+
+command:help() {
+	if [[ $# != 0 ]]; then
+		if ! has command $1; then
+			die "'$1' is not an $SELF command" -1
+		elif ! has help $1; then
+			die "No help found for '$1'" -2
+		else
+			help:$1
+		fi
+	else
+		cat >&2 <<ENDHELP
+usage: $SELF <options> <command>
+
+   options:
+   -d                     Enable debug mode
+   -v                     Enable verbose mode
+   -f                     Enable force mode
+
+   $SELF implements a small solution to maintain  mailfilters leveraging
+   procmail.
+
+ available commands:
+   help                 print this help message
+   help <command>       prints command specific help.  
+
+   version              print the version of $SELF
+
+maintenance:
+   list                 list the rules
+   maildir              shows the maildir
+   logfile              shows the logfile
+   monitor              monitors the logfile
+
+   folders              lists all folders
+   senders <folder>     lists all senders in the folder <folder>
+
+   whitelist <from>     add the mail sender to the whitelist
+   from <folder> [from] add the mail sender to the news folder
+   learn                train the spam filter
+
+   apply                rewrites the procmail configuration
+
+ENDHELP
+	fi
+}
+
+command:version() {
+        echo "$VERSION"
+}
+
+#------------------------------------------------------------------------------
+command:list() {
+	mkdir -p ${SELF_CONFIG}
+	find ${SELF_CONFIG} -name "*.rc" -printf "%P\n"
+}
+
+#------------------------------------------------------------------------------
+command:maildir() {
+	if [ -e $HOME/.procmailrc ]; then
+        	grep "^MAILDIR" $HOME/.procmailrc | sed "s/MAILDIR=//g"
+	else
+        	echo "$HOME/Maildir"
+	fi
+}
+
+#------------------------------------------------------------------------------
+command:logfile() {
+	echo "$HOME/.local/var/log/$SELF.log"
+}
+
+#------------------------------------------------------------------------------
+command:monitor() {
+	less +F $(command:logfile)
+}
+
+#------------------------------------------------------------------------------
+command:folders() {
+	local MAILDIR=$(command:maildir)
+	find $MAILDIR -maxdepth 1 -type d -printf "%P\n" | grep "^\." | sed "s/^\.//g"
+}
+
+#------------------------------------------------------------------------------
+command:senders() {
+	local FOLDER=$1 && test -z "$FOLDER" && fatal "please specify a folder" 1
+	local MAILDIR=$(command:maildir)
+	find $MAILDIR/.$FOLDER/cur -type f -print0 | xargs -0 grep "^From: " | sort -u | sed "s/.*From://g" | sed "s/.*<//g" | sed "s/>.*//g" | tr -d "[:blank:]" | grep -v "\"" | tr '[:upper:]' '[:lower:]' | sort -u
+}
+
+#------------------------------------------------------------------------------
+command:whitelist() {
+	FROM=$1 && test -z "$FROM" && fatal "please specify a from address" 1
+	mkdir -p ${SELF_CONFIG}/whitelists
+	cat > ${SELF_CONFIG}/whitelists/$FROM.rc <<EOF
+:0
+* ^From.*$FROM
+\$DEFAULT
+EOF
+}
+
+#------------------------------------------------------------------------------
+command:from() {
+	local FOLDER=$1 && test -z "$FOLDER" && fatal "please specify a folder" 1
+	local FROM=$2
+	if [ -z "$FROM" ]; then
+		for FROM in $(command:senders $FOLDER); do
+			command:from $FOLDER $FROM
+		done
+	else
+		local MAILDIR=$(command:maildir)
+		mkdir -p ${SELF_CONFIG}/$FOLDER
+		mkdir -p $MAILDIR/.$FOLDER
+		cat > ${SELF_CONFIG}/$FOLDER/$FROM.rc <<EOF
+:0
+* ^From.*$FROM
+\$MAILDIR/.$FOLDER/
+EOF
+	fi
+}
+
+#------------------------------------------------------------------------------
+command:learn() {
+	local MAILDIR=$(command:maildir)
+	info "spamassassin: learning spam mails from $MAILDIR/.Junk"
+	sa-learn --spam --progress --no-sync $MAILDIR/.Junk
+	for FOLDER in $(command:folders | grep -v Junk | grep -v Unsure | grep -v Trash); do
+		info "spamassassin: learning ham mails from $MAILDIR/.$FOLDER"
+		sa-learn --ham --progress --no-sync $MAILDIR/.$FOLDER
+	done
+	sa-learn --sync
+
+	info "bogofilter: learning spam mails from $MAILDIR/.Junk"
+	find $MAILDIR/.Junk/cur/ -type f | bogofilter -s -b
+
+    info "bogofilter: learning ham mails from $MAILDIR/"
+	find $MAILDIR/cur/ -type f | bogofilter -n -b
+	for FOLDER in $(command:folders | grep -v Junk | grep -v Unsure | grep -v Trash); do
+		info "bogofilter: learning ham mails from $MAILDIR/.$FOLDER"
+		find $MAILDIR/.$FOLDER/cur/ -type f | bogofilter -n -b
+	done
+}
+
+#------------------------------------------------------------------------------
+command:apply() {
+	local MAILDIR=$(command:maildir)
+	local LOGFILE=$(command:logfile)
+	cat > $HOME/.procmailrc <<EOF
+PATH=/usr/bin:/usr/local/bin:$HOME/.local/bin
+MAILDIR=${MAILDIR}
+LOGFILE=${LOGFILE}
+FILTERDIR=${SELF_CONFIG}
+SHELL=/bin/bash
+
+DEFAULT=\$MAILDIR/
+#VERBOSE=yes
+UMASK=003
+
+EOF
+
+	for FILE in $(command:list); do
+		cat >> $HOME/.procmailrc <<EOF
+INCLUDERC=\$FILTERDIR/$FILE
+EOF
+	done
+
+cat >> $HOME/.procmailrc <<EOF
+
+:0:
+* ^Subject: Cron
+\$MAILDIR/.Cron/
+
+:0fw
+| /usr/bin/spamassassin
+
+:0:
+* ^X-Spam-Flag: Yes
+\$MAILDIR/.Junk/
+
+# filter mail through bogofilter, tagging it as Ham, Spam, or Unsure,
+# and updating the wordlist
+:0fw
+| bogofilter -u -e -p
+
+# if bogofilter failed, return the mail to the queue;
+# the MTA will retry to deliver it later
+# 75 is the value for EX_TEMPFAIL in /usr/include/sysexits.h
+:0e
+{ EXITCODE=75 HOST }
+
+# file the mail to spam-bogofilter if it's spam.
+:0:
+* ^X-Bogosity: Spam, tests=bogofilter
+\$MAILDIR/.Junk/
+
+:0:
+* ^X-Bogosity: Unsure, tests=bogofilter
+\$MAILDIR/.Unsure/
+EOF
+}
+
+#------------------------------------------------------------------------------
+# Command-line processing
+if [[ $# == 0 ]]; then
+    command:help
+    exit
+fi
+
+# If this is a builtin command, execute it, otherwise fall through
+if has command $1; then
+	command:$1 "${@:2}" # array slice skipping first element
+	exit $?
+else
+	help:$1
+fi

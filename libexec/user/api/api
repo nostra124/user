@@ -1,0 +1,204 @@
+#!/bin/bash
+
+############################################################################
+# Configuration section
+############################################################################
+
+############################################################################
+
+# This should always be the first line of code to facilitate debugging
+[ -n "$SELF_DEBUG" ] && set -vx
+
+VERSION='0.6'
+SELF=$(basename $0)
+
+# Resolve $SELF_LIBEXEC (FEAT-001 libexec convention).
+if [ -z "$SELF_LIBEXEC" ]; then
+	for _d in \
+		"$(cd "$(dirname "$0")/../libexec" 2>/dev/null && pwd)" \
+		"$HOME/.local/libexec" \
+		"/usr/local/libexec" \
+		"/usr/libexec"; do
+		[ -d "$_d/$SELF" ] && SELF_LIBEXEC="$_d" && break
+	done
+	unset _d
+fi
+
+die() {
+	echo "$1" >&2
+	exit "${2:-1}"
+}
+
+fatal() {
+	echo "$SELF: fatal - $1" >&2
+	exit "${2:-1}"
+}
+
+debug() {
+        [ -n "$SELF_DEBUG" ] && echo "$SELF: debug - $@" >&2
+}
+
+info() {
+        if [ ! -n "$SELF_QUIET" ]; then echo -e "$SELF: info - \033[33;m$@\033[0m" >&2; fi
+}
+
+warn() {
+        echo -e "$SELF: warn - \033[31;1;m$@\033[0m" >&2
+}
+
+# checks if a certain function exists: eg. has command update
+has() {
+    local KIND=$1
+    local NAME=$2
+
+    type -t $KIND:$NAME | grep -q function
+}
+
+# We need to run getops as soon as possible so we catch -d and other
+# options that will modify our behaviour.
+# Commands are handled at the end of this script.
+
+while getopts "c:dq" flag; do
+	if [ x"$1" = x'-q' ]; then
+		SELF_QUIET=1
+	fi
+	if [ x"$1" = x'-d' ]; then
+		SELF_DEBUG=1
+	fi
+	shift 1
+done
+
+# Read configuration and set defaults if anything's not set
+: ${XDG_CONFIG_HOME:="~/.config"}
+: ${XDG_CACHE_HOME:="~/.cache"}
+: ${XDG_DATA_HOME:="~/.local/var"}
+: ${XDG_SHARE_HOME:="~/.local/share"}
+
+eval SELF_DATA=${XDG_DATA_HOME}/${SELF} && mkdir -p ${SELF_DATA}
+
+
+[ -n "$SELF_VERBOSE" ] && set -vx
+
+command:help() {
+	if [[ $# != 0 ]]; then
+		if ! has command $1; then
+			echo "'$1' is not an $SELF command"
+			echo ""
+			echo "please see '$SELF help'"
+			exit -1
+		elif ! has help $1; then
+			echo "No help found for '$1'"
+			echo ""
+			echo "please see '$SELF help'"
+			exit -2
+		else
+			help:$1
+			return 0
+		fi
+	else
+		cat >&2 <<ENDHELP
+usage: $SELF <options> <command>
+
+   options:
+   -d                             Enable debug output
+   -q                             Enable quiet mode
+
+   $SELF provides an abstraction to the various application programming 
+   interfaces of different providers. The main functionalities are implemented
+   as plugins, which should allow simple access through the command line.
+
+   The idea is to provide a simple wrapper bundeling changes to the interface
+   at a central place.
+
+generic commands:
+   help                print this help message
+   help <command>      prints command specific help.  
+   version             print the version of $SELF
+
+   get <uri> <params>  makes a get call to the given uri
+   post <uri> <params> makes a post call reading from stdin 
+
+   provider            list the provider plugins
+   tasks               lists the task plugins
+  
+   <provider> <args>   executes the provider plugin
+   <task> <args>       executes the task plugin
+ENDHELP
+	fi
+}
+
+command:version() {
+        echo "$VERSION"
+}
+
+command:get() {
+	local URI=$1
+	shift
+
+	local GETDATA=""
+	for PARAM in $@; do
+		if [ -z "$GETDATA" ]; then
+			local GETDATA="$PARAM"
+		else
+			local GETDATA="$GETDATA&$PARAM"
+		fi
+	done
+
+	if [ -z "$GETDATA" ]; then
+		curl -s "$URI" | jq
+	else
+		curl -s "$URI?$GETDATA" | jq
+	fi
+}
+
+command:post() {
+	local URI=$1
+	shift
+
+	local GETDATA=""
+	for PARAM in $@; do
+		if [ -z "$GETDATA" ]; then
+			local GETDATA="$PARAM"
+		else
+			local GETDATA="$GETDATA&$PARAM"
+		fi
+	done
+
+	local POSTDATA=$(cat)
+
+	curl -s -X "POST"  "$URI?$GETDATA" --data "$POSTDATA" | jq
+}
+
+#------------------------------------------------------------------------------
+command:provider() {
+	[ -d "$SELF_LIBEXEC/$SELF/" ] && (cd "$SELF_LIBEXEC/$SELF/" && ls)|[ -d "$SELF_LIBEXEC/$SELF/provider" ] && (cd "$SELF_LIBEXEC/$SELF/provider" && ls)| sed "s/$SELF\/provider\///g"
+}
+
+#------------------------------------------------------------------------------
+command:tasks() {
+	[ -d "$SELF_LIBEXEC/$SELF/" ] && (cd "$SELF_LIBEXEC/$SELF/" && ls)|[ -d "$SELF_LIBEXEC/$SELF/tasks" ] && (cd "$SELF_LIBEXEC/$SELF/tasks" && ls)| sed "s/$SELF\/tasks\///g"
+}
+
+#------------------------------------------------------------------------------
+# Command-line processing
+if [[ $# == 0 ]]; then
+	command:help
+	exit
+fi
+
+#------------------------------------------------------------------------------
+# If this is a builtin command, execute it, otherwise fall through
+if has command $1; then
+	debug "executing command:$1 ${@:2}"
+	command:$1 "${@:2}" # array slice skipping first element
+	exit $?
+elif test -x "$SELF_LIBEXEC/$SELF/provider/$1"; then
+	exec "$SELF_LIBEXEC/$SELF/provider/$1" "${@:2}"
+	exit $?
+elif test -x "$SELF_LIBEXEC/$SELF/tasks/$1"; then
+	exec "$SELF_LIBEXEC/$SELF/tasks/$1" "${@:2}"
+	exit $?
+else
+	command:help
+	exit $?
+fi

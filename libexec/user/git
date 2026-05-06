@@ -1,0 +1,52 @@
+#!/bin/sh
+
+USER=git
+if id -u "$USER" >/dev/null 2>&1; then
+        USERHOME=$(sh -c "echo ~$USER")
+else
+        USERHOME=/srv/${USER}
+        mkdir --parents ${USERHOME}
+        adduser --quiet --system --home ${USERHOME} --shell /bin/sh --disabled-password ${USER}
+fi
+
+chown -R ${USER} ${USERHOME}
+mkdir -p ${USERHOME}/.ssh
+mkdir -p ${USERHOME}/bin
+
+if [ ! -d ${USERHOME}/gitolite ]; then
+	git clone git://github.com/sitaramc/gitolite ${USERHOME}/gitolite
+fi
+
+${USERHOME}/gitolite/install -ln ${USERHOME}/bin
+
+cp ${HOME}/.ssh/id_rsa.pub ${USERHOME}/admin.pub
+mkdir --parents ${USERHOME}/.gitolite/logs
+chown -R ${USER} ${USERHOME}
+sudo -u ${USER} -i ${USERHOME}/bin/gitolite setup -pk ${USERHOME}/admin.pub 
+#chmod o+x ${HOME}/.ssh
+#chmod o+r ${HOME}/.ssh/id_rsa.pub
+#su -c "${USERHOME}/bin/gitolite setup -pk ${HOME}/.ssh/id_rsa.pub" ${USER}
+chown -R ${USER} ${USERHOME}
+
+if [ ! -d ${HOME}/Projects/gitolite-admin ]; then
+	git clone bot@localhost:gitolite-admin ${HOME}/Projects/gitolite-admin
+fi
+
+# now activate git-daemon
+cat << EOF > /etc/xinetd.d/git
+service git
+{
+    disable         = no
+    type            = UNLISTED
+    port            = 9418
+    socket_type     = stream
+    wait            = no
+    user            = ${USER}
+    server          = /usr/bin/git
+    server_args     = daemon --inetd --base-path=${USERHOME}/repositories
+    log_on_failure  += USERID
+}
+EOF
+service xinetd restart
+
+sudo apt-get install git 

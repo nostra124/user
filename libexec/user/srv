@@ -1,0 +1,60 @@
+#!/bin/sh
+
+function die() {
+	echo "$@"
+	exit 100
+}
+
+USERNAME=srv
+case $(uname -s) in
+	Linux*)
+		sudo mkdir -p /srv/.ssh
+		sudo mkdir -p /srv/.local/var/repo/
+		cat $HOME/.ssh/id_rsa.pub | sudo tee -a /srv/.ssh/authorized_keys > /dev/null
+		sudo sort -u -o /srv/.ssh/authorized_keys /srv/.ssh/authorized_keys
+		sudo chmod -R go-rwx /srv/.ssh
+
+		sudo adduser --quiet --system --group --home /srv --shell /bin/sh --disabled-password ${USERNAME}
+		sudo chown -R ${USERNAME}:${USERNAME} /srv
+		sudo mkdir -p /etc/apache2/host-available
+		cat << EOF | sudo tee /etc/apache2/host-available/git.conf > /dev/null
+Alias /git/ "/srv/.local/var/repo/"
+<Directory "/srv/.local/var/repo/">
+        Options Indexes MultiViews FollowSymLinks
+        Order deny,allow
+        Deny from all
+        Allow from 127.0.0.0/255.0.0.0 ::1/128
+</Directory>
+EOF
+		;;
+	Darwin*)
+		sudo mkdir -p /private/srv/.ssh
+		sudo mkdir -p /private/srv/.local/var/repo/
+		cat $HOME/.ssh/id_rsa.pub | sudo tee -a /private/srv/.ssh/authorized_keys > /dev/null
+		sudo sort -u -o /private/srv/.ssh/authorized_keys /private/srv/.ssh/authorized_keys
+		sudo chmod -R go-rwx /private/srv/.ssh
+
+		sudo sysadminctl -addUser srv -admin -home /srv
+		sudo chown -R ${USERNAME}:staff /private/srv
+
+		if [ ! -e /etc/synthetic.conf ]; then
+			sudo touch /etc/synthetic.conf
+			sudo chmod 0644 /etc/synthetic.conf
+			sudo chown root:wheel /etc/synthetic.conf
+			echo "srv\tprivate/srv" | sudo tee -a /etc/synthetic.conf
+			echo "/etc/synthetic.conf created - please reboot"
+		else
+			echo "/etc/synthetic.conf already exists - please check that /srv is correctly configured"
+		fi
+		cat << EOF | sudo tee /etc/apache2/host-available/git.conf > /dev/null
+Alias /git/ "/srv/.local/var/repo/"
+<Directory "/srv/.local/var/repo/">
+        Options Indexes MultiViews FollowSymLinks
+	Require all granted
+</Directory>
+EOF
+		;;
+	*)  die "Unsupported Environment"
+esac
+
+sudo chmod o+r /etc/apache2/host-available/git.conf

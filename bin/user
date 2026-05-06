@@ -1,0 +1,308 @@
+#!/bin/bash
+
+############################################################################
+# Configuration section
+############################################################################
+
+# This should always be the first line of code to facilitate debugging
+[ -n "$SELF_DEBUG" ] && set -vx
+
+# Per FEAT-194: VERSION read at runtime from .rpk/version (dev tree)
+# or $PREFIX/share/user/version (installed). The hardcoded fallback
+# is used only if both files are missing.
+__d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
+VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.0.0')
+unset __d __s
+SELF=$(basename $0)
+
+die() {
+	echo "$1" >&2
+	exit "${2:-1}"
+}
+
+fatal() {
+	echo "$SELF: fatal - $1" >&2
+	exit "${2:-1}"
+}
+
+debug() {
+	[ -n "$SELF_DEBUG" ] && echo "$SELF: debug - $@" >&2
+}
+
+info() {
+	if [ ! -n "$SELF_QUIET" ]; then echo -e "$SELF: info - \033[33;m$@\033[0m" >&2; fi
+}
+
+warn() {
+	echo -e "$SELF: warn - \033[31;1;m$@\033[0m" >&2
+}
+
+# checks if a certain function exists: eg. has command update
+has() {
+	local KIND=$1
+	local NAME=$2
+
+	type -t $KIND:$NAME | grep -q function
+}
+
+# We need to run getops as soon as possible so we catch -d and other
+# options that will modify our behaviour.
+# Commands are handled at the end of this script.
+while getopts "c:dq" flag; do
+	if [ x"$1" = x'-q' ]; then
+		SELF_QUIET=1
+	fi
+	if [ x"$1" = x'-d' ]; then
+		SELF_DEBUG=1
+	fi
+	shift 1
+done
+
+# Read configuration and set defaults if anything's not set
+: ${XDG_CONFIG_HOME:="$HOME/.config"}
+: ${XDG_CACHE_HOME:="$HOME/.cache"}
+: ${XDG_DATA_HOME:="~/.local/share"}
+
+[ -n "$SELF_VERBOSE" ] && set -vx
+
+command:help() {
+	if [[ $# != 0 ]]; then
+		if ! has command $1; then
+			echo "'$1' is not an $SELF command"
+			echo ""
+			echo "please see 'repo help'"
+			exit -1
+		elif ! has help $1; then
+			echo "No help found for '$1'"
+			echo ""
+			echo "please see 'repo help'"
+			exit -2
+		else
+			help:$1
+			return 0
+		fi
+	else
+		cat >&2 <<ENDHELP
+usage: $SELF <options> <command>
+
+$SELF takes care of managing system users in a os agnostic way. It also ensures 
+that the ssh-account of the users are proper setup. The users are created 
+with a home directory und /var/lib/<user>
+
+The current user $USER will get the rights to easily log into the new account
+via ssh.
+
+options:
+   -d                     Enable debug mode
+   -v                     Enable verbose mode
+
+available commands
+   help                   Print this help message.
+   version                Print the version of $SELF
+
+   list                   Lists the known system users
+   create <user>          Creates the given system user
+   delete <user>          Deletes the given system user
+
+   add <user> <group>     Adds the user to the group
+
+   <user> exec            Reads a script from stdin and executes it
+
+   sub-services:
+   api <verb>             external-API frontend (libexec/$SELF/api)
+   mails <verb>           procmail-based mail filtering (libexec/$SELF/mails)
+   git <verb>             per-user git ops (libexec/$SELF/git)
+   srv <verb>             per-user srv tree (libexec/$SELF/srv)
+ENDHELP
+        fi
+        return 0
+}
+
+command:version() {
+	echo "$VERSION"
+}
+
+command:list() {
+	account list | grep "@localhost" | sed 's/@localhost//g'
+}
+
+command:create() {
+	local USERNAME=${1}
+	test -z "$USERNAME" && fatal "Please specify a user name" -1
+
+	if [ "$USERNAME" = "srv" ]; then
+		local USERHOME=/srv
+		if [ -e /etc/subuid ]; then
+			echo "srv:200000:65536" | sudo tee -a /etc/subuid > /dev/null
+			sudo sort -u /etc/subuid -o /etc/subuid
+		fi
+		if [ -e /etc/subgid ]; then
+			echo "srv:200000:65536" | sudo tee -a /etc/subgid > /dev/null
+			sudo sort -u /etc/subuid -o /etc/subgid
+		fi
+	elif [ "$USERNAME" = "obj" ]; then
+		local USERHOME=/obj
+	else
+		local USERHOME=/var/lib/$USERNAME
+	fi
+
+	case $(uname -s) in
+		Linux*)
+			local GROUPNAME=users
+			sudo adduser --system --home $USERHOME \
+				--shell /bin/bash \
+				--disabled-password --group $GROUPNAME
+			local USERPATH=$USERHOME
+			;;
+		Darwin*)
+			local GROUPNAME=staff
+			if [ ! -e /etc/synthetic.conf ]; then
+				sudo touch /etc/synthetic.conf
+				sudo chmod 0644 /etc/synthetic.conf
+				sudo chown root:wheel /etc/synthetic.conf
+			fi
+
+			if [ "$USERNAME" = "srv" ]; then
+				local USERPATH=/private/srv
+
+				if ! grep -q "^srv\tprivate/srv$" /etc/synthetic.conf; then
+					echo "srv\tprivate/srv" | sudo tee -a /etc/synthetic.conf
+					info "/etc/synthetic.conf changed - please reboot"
+				fi
+			elif [ "$USERNAME" = "obj" ]; then
+				local USERPATH=/private/obj
+				if ! grep -q "^obj\tprivate/obj$" /etc/synthetic.conf; then
+					echo "obj\tprivate/obj" | sudo tee -a /etc/synthetic.conf
+					info "/etc/synthetic.conf changed - please reboot"
+				fi
+			else
+				local USERPATH=$USERHOME
+			fi
+
+			info "Enabling sshd ('Remote Login')"
+			systemsetup -f -setremotelogin on
+			sudo dseditgroup -o create -q $GROUPNAME
+			GID=$(dseditgroup -o read -q $GROUPNAME | grep -C 1 PrimaryGroupID | tail -1 | xargs)
+			sudo sysadminctl -addUser $USERNAME -admin -home $USERHOME -shell /bin/bash -GID $GID
+			sudo dseditgroup -o edit -q -a $USERNAME  -t user  $GROUPNAME
+			sudo dseditgroup -o edit -q -a $USERNAME  -t user  staff
+			sudo dseditgroup -o edit -q -a $GROUPNAME -t group com.apple.access_ssh
+			;;
+		*)
+			fatal "Unsupported Environment" -1
+			;;
+	esac
+
+	sudo mkdir -p $USERPATH/.ssh
+	cat $HOME/.ssh/id_rsa.pub | sudo tee -a \
+		$USERPATH/.ssh/authorized_keys > /dev/null
+
+	sudo sort -u -o $USERPATH/.ssh/authorized_keys \
+		$USERPATH/.ssh/authorized_keys
+
+	sudo chown -R $USERNAME:$USERNAME $USERPATH
+	sudo chmod -R o-rwx $USERPATH
+	sudo chmod -R g-rwx $USERPATH/.ssh
+
+	sudo chsh -s /bin/bash $USERNAME
+	account init $USERNAME@localhost
+}
+
+command:delete() {
+	USERNAME=${1}
+	test -z "$USERNAME" && fatal "Please specify a user name" -1
+	case $(uname -s) in
+		Linux*)
+			sudo deluser  $USERNAME
+			sudo delgroup $USERNAME
+			;;
+		Darwin*)
+			sudo sysadminctl -deleteUser $USERNAME
+			;;
+		*)
+			fatal "Unsupported Environment" -1
+			;;
+	esac
+
+	if [ "$USERNAME" = "srv" ]; then
+		sudo rm -rf /srv/*
+	else
+		sudo rm -rf /var/lib/$USERNAME
+	fi
+}
+
+command:add() {
+	USERNAME=${1}
+	test -z "$USERNAME" && fatal "Please specify a user name" -1
+	GROUPNAME=${2}
+	test -z "$GROUPNAME" && fatal "Please specify a group name" -1
+	case $(uname -s) in
+		Linux*)
+			sudo adduser $USERNAME $GROUPNAME
+			;;
+		Darwin*)
+			sudo dseditgroup -o edit -q -a $USERNAME  -t user  $GROUPNAME
+			;;
+		*)
+			fatal "Unsupported Environment" -1
+			;;
+	esac
+}
+
+command:exec() {
+	local USERNAME=${1}
+	test -z "$USERNAME" && fatal "Please specify a user name" -1
+
+	local SCRIPT=$(mktemp -d /tmp/$SELF.XXXXXX)
+	if [ $? -eq 0 ]; then
+		info "writing script to $SCRIPT/script"
+		cat > $SCRIPT/script
+		sudo chown -R $USERNAME $SCRIPT
+		sudo chmod -R +x $SCRIPT
+		info "executing sudo -u $USERNAME -i $SCRIPT/script"
+		sudo -u $USERNAME -i $SCRIPT/script
+		local RESULT=$?
+		sudo rm -rf $SCRIPT
+		return $RESULT
+	else
+		fatal "Could not create temporary directory" -1
+	fi
+}
+
+#------------------------------------------------------------------------------
+# Command-line processing
+if [[ $# == 0 ]]; then
+	command:help
+	exit
+fi
+
+#------------------------------------------------------------------------------
+# sub-services dispatched into libexec/<self>/
+# Per FEAT-148 (libexec dispatcher), FEAT-149 (mails), FEAT-150 (api),
+# FEAT-167 (git, srv — landed earlier).
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+LIBEXEC="$SELF_DIR/../libexec/$SELF"
+
+command:api()   { exec "$LIBEXEC/api/api" "$@"; }
+command:mails() { exec "$LIBEXEC/mails"   "$@"; }
+command:git()   { exec "$LIBEXEC/git"     "$@"; }
+command:srv()   { exec "$LIBEXEC/srv"     "$@"; }
+
+#------------------------------------------------------------------------------
+# If this is a builtin command, execute it, otherwise fall through
+if has command $1; then
+	debug "executing command:$1 ${@:2}"
+	command:$1 "${@:2}" # array slice skipping first element
+	exit $?
+elif id $1 > /dev/null 2> /dev/null; then
+	USERNAME=$1 && shift
+	if has command $1; then
+		debug "executing command:$1 ${@:2}"
+		command:$1 $USERNAME "${@:2}" # array slice skipping first element
+		exit $?
+	fi
+fi
+
+fatal "unknown command $1 ${@:2}"
+command:help
+exit -1
