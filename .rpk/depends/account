@@ -10,7 +10,7 @@ RPK="$HOME/.local/bin/rpk"
 }
 
 # Idempotent import: register the bare repo only if rpk doesn't know it yet.
-if ! "$RPK" list 2>/dev/null | grep -qx account; then
+if ! "$RPK" list 2>/dev/null | awk '{print $1}' | grep -qx account; then
 	"$RPK" import https://github.com/nostra124/account
 fi
 
