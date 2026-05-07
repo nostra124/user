@@ -1,16 +1,15 @@
 #!/bin/sh
-# Install dependency: rpk (rpk package).
+# Verify dependency: rpk.
 #
-# rpk is the package manager itself. If we are running this script,
-# rpk is already on PATH (it invoked us). Verify, and register the
-# self-dependency via `rpk install rpk` if not already in the ledger.
+# rpk is the package manager itself. If this script is running,
+# rpk invoked it, so rpk is on PATH by definition. Asking rpk to
+# install rpk is nonsense; we only assert and bail out with a
+# clear error if the invariant is somehow violated.
 set -eu
 
 command -v rpk >/dev/null 2>&1 || {
-	echo "depends/rpk: rpk not on PATH" >&2
+	echo "depends/rpk: rpk not on PATH (this should be impossible)" >&2
 	exit 1
 }
 
-rpk list 2>/dev/null | grep -qx rpk && exit 0
-
-exec rpk install rpk
+exit 0
