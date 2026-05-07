@@ -1,5 +1,10 @@
 #!/bin/sh
-# Install dependency: account (rpk package).
+# Make the `account` rpk package available to rpk.
+#
+# This script's only job is to register the bare repo via
+# `rpk import`. The actual `rpk install account` is rpk's own
+# job once the dep is available — calling it from here causes
+# rpk's transitive-dep loop to re-fire indefinitely.
 set -eu
 
 RPK="$HOME/.local/bin/rpk"
@@ -9,10 +14,7 @@ RPK="$HOME/.local/bin/rpk"
 	exit 1
 }
 
-# `rpk list` shows imported packages; we re-run install below to
-# cover the imported-but-not-installed case (install is a no-op
-# when already installed).
-"$RPK" list 2>/dev/null | grep -qx account \
-	|| "$RPK" import https://github.com/nostra124/account
+# Idempotent: skip if already imported.
+"$RPK" list 2>/dev/null | grep -qx account && exit 0
 
-exec "$RPK" install account
+exec "$RPK" import https://github.com/nostra124/account

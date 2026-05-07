@@ -108,8 +108,10 @@ else
 fi
 
 # -----------------------------------------------------------------------
-# 3. depends/account: import-then-install on cold cache, install-only
-#    when already in `rpk list`
+# 3. depends/account: imports on cold cache, no-op on warm cache.
+#    The script must NOT call `rpk install` — that is rpk's own job
+#    on the parent install pass; calling it from a depends script
+#    re-enters rpk's transitive-dep loop and never terminates.
 # -----------------------------------------------------------------------
 
 banner "depends/account"
@@ -129,24 +131,24 @@ chmod +x "$HOME/.local/bin/rpk"
 export RPK_LOG="$TMP/rpk.log"
 export RPK_LIST="$TMP/rpk-list.txt"
 
-# cold cache: list returns empty → expect import + install
+# cold cache: list returns empty → expect import, no install.
 : >"$RPK_LOG"
 : >"$RPK_LIST"
 if "$DEPENDS/account" >/dev/null 2>&1 \
 	&& grep -q '^import https://github.com/nostra124/account$' "$RPK_LOG" \
-	&& grep -q '^install account$' "$RPK_LOG"; then
-	ok "depends/account: cold cache → import + install"
+	&& ! grep -q '^install' "$RPK_LOG"; then
+	ok "depends/account: cold cache → import, no install"
 else
 	fail "depends/account: cold-cache log mismatch (got: $(tr '\n' '|' <"$RPK_LOG"))"
 fi
 
-# warm cache: list returns 'account' → expect install only, no import
+# warm cache: list returns 'account' → expect early exit, no rpk calls beyond list.
 : >"$RPK_LOG"
 echo account >"$RPK_LIST"
 if "$DEPENDS/account" >/dev/null 2>&1 \
 	&& ! grep -q '^import' "$RPK_LOG" \
-	&& grep -q '^install account$' "$RPK_LOG"; then
-	ok "depends/account: warm cache → install only, no import"
+	&& ! grep -q '^install' "$RPK_LOG"; then
+	ok "depends/account: warm cache → no-op (no import, no install)"
 else
 	fail "depends/account: warm-cache log mismatch (got: $(tr '\n' '|' <"$RPK_LOG"))"
 fi
