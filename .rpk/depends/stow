@@ -4,6 +4,8 @@ set -eu
 
 command -v stow >/dev/null 2>&1 && exit 0
 
+if [ "$(id -u)" -eq 0 ]; then SUDO=; else SUDO=sudo; fi
+
 case "$(uname -s)" in
 	Darwin)
 		command -v brew >/dev/null 2>&1 || {
@@ -14,15 +16,15 @@ case "$(uname -s)" in
 		;;
 	Linux)
 		if command -v apt-get >/dev/null 2>&1; then
-			exec sudo apt-get install -y stow
+			exec $SUDO apt-get install -y stow
 		elif command -v dnf >/dev/null 2>&1; then
-			exec sudo dnf install -y stow
+			exec $SUDO dnf install -y stow
 		elif command -v yum >/dev/null 2>&1; then
-			exec sudo yum install -y stow
+			exec $SUDO yum install -y stow
 		elif command -v pacman >/dev/null 2>&1; then
-			exec sudo pacman -S --noconfirm stow
+			exec $SUDO pacman -S --noconfirm stow
 		elif command -v apk >/dev/null 2>&1; then
-			exec sudo apk add stow
+			exec $SUDO apk add stow
 		else
 			echo "depends/stow: no supported package manager" >&2
 			exit 1

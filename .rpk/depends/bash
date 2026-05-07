@@ -4,6 +4,8 @@ set -eu
 
 command -v bash >/dev/null 2>&1 && exit 0
 
+if [ "$(id -u)" -eq 0 ]; then SUDO=; else SUDO=sudo; fi
+
 case "$(uname -s)" in
 	Darwin)
 		command -v brew >/dev/null 2>&1 || {
@@ -14,15 +16,15 @@ case "$(uname -s)" in
 		;;
 	Linux)
 		if command -v apt-get >/dev/null 2>&1; then
-			exec sudo apt-get install -y bash
+			exec $SUDO apt-get install -y bash
 		elif command -v dnf >/dev/null 2>&1; then
-			exec sudo dnf install -y bash
+			exec $SUDO dnf install -y bash
 		elif command -v yum >/dev/null 2>&1; then
-			exec sudo yum install -y bash
+			exec $SUDO yum install -y bash
 		elif command -v pacman >/dev/null 2>&1; then
-			exec sudo pacman -S --noconfirm bash
+			exec $SUDO pacman -S --noconfirm bash
 		elif command -v apk >/dev/null 2>&1; then
-			exec sudo apk add bash
+			exec $SUDO apk add bash
 		else
 			echo "depends/bash: no supported package manager" >&2
 			exit 1
