@@ -1,10 +1,14 @@
 #!/bin/sh
-# Make the `account` rpk package available to rpk.
+# Install dependency: account (rpk package).
 #
-# This script's only job is to register the bare repo via
-# `rpk import`. The actual `rpk install account` is rpk's own
-# job once the dep is available — calling it from here causes
-# rpk's transitive-dep loop to re-fire indefinitely.
+# Invoke rpk in PACKAGE-FIRST form (`rpk account install`), NOT the
+# verb-first form (`rpk install account`). rpk's argv parser auto-
+# detects PACKAGE from the cwd's git worktree; this script runs with
+# cwd inside user/.rpk/depends/, so `rpk install account` would be
+# read as "install user, version=account", re-enter user's depends
+# loop, and recurse indefinitely. The package-first form is matched
+# by the first branch of rpk's dispatcher (looks $1 up in `rpk list`)
+# and bypasses the cwd-based detection entirely.
 set -eu
 
 RPK="$HOME/.local/bin/rpk"
@@ -14,7 +18,8 @@ RPK="$HOME/.local/bin/rpk"
 	exit 1
 }
 
-# Idempotent: skip if already imported.
-"$RPK" list 2>/dev/null | grep -qx account && exit 0
+# Idempotent import: register the bare repo if rpk doesn't know it yet.
+"$RPK" list 2>/dev/null | grep -qx account \
+	|| "$RPK" import https://github.com/nostra124/account
 
-exec "$RPK" import https://github.com/nostra124/account
+exec "$RPK" account install
