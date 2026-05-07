@@ -52,4 +52,4 @@ This package follows the rpk per-script repo convention:
 
 ## License
 
-GPL-3 (per the cross-cutting policy in the parent `scripts` collection).
+GPL-3 (per the cross-cutting policy in the parent `scripts` collection). See [`LICENSE`](LICENSE) for the full text.
