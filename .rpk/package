@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build a `user` bundle for `rpk <pkg> install`.
+# Build a `user` bundle for `rpk install <pkg>`.
 #
 # Pure-scripts package per the rpk PACKAGING.md cookbook
 # (no compile step, just stage files into $TARGET).
@@ -26,7 +26,7 @@ VERSION=$1
 test -z "$VERSION" && VERSION=$(rpk versions | tail -1)
 test -z "$VERSION" && die "no version available — seed .rpk/versions or pass an explicit version"
 
-COMMIT=$(rpk commit "$VERSION")
+COMMIT=$(rpk commit "$PACKAGE" "$VERSION")
 test -z "$COMMIT" && die "version $VERSION has no commit hash"
 
 TARGET=$(rpk bundle "$(rpk type)")/$PACKAGE-$VERSION

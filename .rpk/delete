@@ -1,0 +1,8 @@
+#!/bin/bash
+# Pre-delete hook for user package.
+# Remove symlinks that .rpk/install created in $HOME.
+set -eu
+
+rm -f "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.bash_logout"
+rm -f "$HOME/.profile" "$HOME/.inputrc"
+[ -L "$HOME/.bash" ] && [ "$(readlink "$HOME/.bash")" = "$PWD/etc/bash" ] && rm -f "$HOME/.bash"
