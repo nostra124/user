@@ -4,6 +4,8 @@ set -eu
 
 command -v git >/dev/null 2>&1 && exit 0
 
+if [ "$(id -u)" -eq 0 ]; then SUDO=; else SUDO=sudo; fi
+
 case "$(uname -s)" in
 	Darwin)
 		command -v brew >/dev/null 2>&1 || {
@@ -14,15 +16,15 @@ case "$(uname -s)" in
 		;;
 	Linux)
 		if command -v apt-get >/dev/null 2>&1; then
-			exec sudo apt-get install -y git
+			exec $SUDO apt-get install -y git
 		elif command -v dnf >/dev/null 2>&1; then
-			exec sudo dnf install -y git
+			exec $SUDO dnf install -y git
 		elif command -v yum >/dev/null 2>&1; then
-			exec sudo yum install -y git
+			exec $SUDO yum install -y git
 		elif command -v pacman >/dev/null 2>&1; then
-			exec sudo pacman -S --noconfirm git
+			exec $SUDO pacman -S --noconfirm git
 		elif command -v apk >/dev/null 2>&1; then
-			exec sudo apk add git
+			exec $SUDO apk add git
 		else
 			echo "depends/git: no supported package manager" >&2
 			exit 1
