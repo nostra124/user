@@ -14,7 +14,7 @@ if [ "$(id -u)" -eq 0 ]; then SUDO=; else SUDO=sudo; fi
 case "$(uname -s)" in
 	Darwin)
 		if [ -n "$BREW" ]; then
-			exec "$BREW" install stow >/dev/null
+			rpk action "$BREW" install stow
 		else
 			echo "depends/stow: brew not found" >&2
 			exit 1
