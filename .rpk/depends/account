@@ -1,0 +1,9 @@
+#!/bin/sh
+# Install dependency: account (rpk package).
+set -eu
+
+if command -v rpk >/dev/null 2>&1 && rpk list 2>/dev/null | grep -qx account; then
+	exit 0
+fi
+
+exec rpk install account

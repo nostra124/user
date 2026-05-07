@@ -1,0 +1,16 @@
+#!/bin/sh
+# Install dependency: rpk (rpk package).
+#
+# rpk is the package manager itself. If we are running this script,
+# rpk is already on PATH (it invoked us). Verify, and register the
+# self-dependency via `rpk install rpk` if not already in the ledger.
+set -eu
+
+command -v rpk >/dev/null 2>&1 || {
+	echo "depends/rpk: rpk not on PATH" >&2
+	exit 1
+}
+
+rpk list 2>/dev/null | grep -qx rpk && exit 0
+
+exec rpk install rpk
