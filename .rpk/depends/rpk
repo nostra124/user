@@ -2,13 +2,15 @@
 # Verify dependency: rpk.
 #
 # rpk is the package manager itself. If this script is running,
-# rpk invoked it, so rpk is on PATH by definition. Asking rpk to
-# install rpk is nonsense; we only assert and bail out with a
-# clear error if the invariant is somehow violated.
+# rpk invoked it, so it must already be installed at the canonical
+# location. Asking rpk to install rpk is nonsense; we only assert
+# and bail out with a clear error if the invariant is violated.
 set -eu
 
-command -v rpk >/dev/null 2>&1 || {
-	echo "depends/rpk: rpk not on PATH (this should be impossible)" >&2
+RPK="$HOME/.local/bin/rpk"
+
+[ -x "$RPK" ] || {
+	echo "depends/rpk: $RPK not found or not executable" >&2
 	exit 1
 }
 
