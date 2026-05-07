@@ -1,0 +1,18 @@
+#!/bin/sh
+# Install dependency: account (rpk package).
+set -eu
+
+RPK="$HOME/.local/bin/rpk"
+
+[ -x "$RPK" ] || {
+	echo "depends/account: $RPK not found or not executable" >&2
+	exit 1
+}
+
+# `rpk list` shows imported packages; we re-run install below to
+# cover the imported-but-not-installed case (install is a no-op
+# when already installed).
+"$RPK" list 2>/dev/null | grep -qx account \
+	|| "$RPK" import https://github.com/nostra124/account
+
+exec "$RPK" install account
