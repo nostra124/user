@@ -1,0 +1,62 @@
+#!/bin/bash
+# Platform setup for macOS. Reads ~/.local/etc/bash/config.sh for overrides.
+
+[ -f "$HOME/.local/etc/bash/config.sh" ] && source "$HOME/.local/etc/bash/config.sh"
+
+############# MACPORTS ############################
+if [ "${USER_MACPORTS_ENABLED:-1}" = "1" ] && [ -d "${USER_MACPORTS_PREFIX:-/opt/local}" ]; then
+	export PATH="${USER_MACPORTS_PREFIX:-/opt/local}/bin:${USER_MACPORTS_PREFIX:-/opt/local}/sbin:$PATH"
+	export MANPATH="${USER_MACPORTS_PREFIX:-/opt/local}/share/man:$MANPATH"
+	export CPATH="/usr/local/include:${USER_MACPORTS_PREFIX:-/opt/local}/include:/usr/include"
+	export LIBRARY_PATH="/usr/local/lib:${USER_MACPORTS_PREFIX:-/opt/local}/lib:/usr/lib"
+
+	# bash-completion
+	if [ -f "${USER_MACPORTS_PREFIX:-/opt/local}/etc/profile.d/bash_completion.sh" ]; then
+		source "${USER_MACPORTS_PREFIX:-/opt/local}/etc/profile.d/bash_completion.sh"
+	fi
+
+	# use the gnu coreutils exe files
+	if [ -d "${USER_MACPORTS_PREFIX:-/opt/local}/libexec/gnubin" ]; then
+		export PATH="${USER_MACPORTS_PREFIX:-/opt/local}/libexec/gnubin:$PATH"
+	fi
+fi
+
+############# HOMEBREW ############################
+if [ "${USER_BREW_ENABLED:-1}" = "1" ]; then
+	BREW_PREFIX="${USER_BREW_PREFIX:-}"
+
+	# Auto-detect if not set
+	if [ -z "$BREW_PREFIX" ]; then
+		if [ -d /opt/homebrew ]; then
+			BREW_PREFIX=/opt/homebrew
+		elif [ -d /usr/local/Homebrew ]; then
+			BREW_PREFIX=/usr/local
+		fi
+	fi
+
+	if [ -n "$BREW_PREFIX" ] && [ -x "$BREW_PREFIX/bin/brew" ]; then
+		eval $("$BREW_PREFIX/bin/brew" shellenv)
+
+		# bash-completion v1 (older homebrew)
+		if [ -f $(brew --prefix)/etc/bash_completion ]; then
+			source $(brew --prefix)/etc/bash_completion
+		fi
+
+		# bash-completion v2 (modern homebrew)
+		if [ -r $(brew --prefix)/etc/profile.d/bash_completion.sh ]; then
+			source $(brew --prefix)/etc/profile.d/bash_completion.sh
+		fi
+
+		# nvm via homebrew
+		if [ -f $(brew --prefix nvm)/nvm.sh ]; then
+			mkdir -p ~/.nvm
+			export NVM_DIR=~/.nvm
+			source $(brew --prefix nvm)/nvm.sh
+		fi
+
+		export C_INCLUDE_PATH="$BREW_PREFIX/include"
+		export CPLUS_INCLUDE_PATH="$BREW_PREFIX/include"
+		export LIBRARY_PATH="$BREW_PREFIX/lib"
+		export XDG_DATA_DIRS="$BREW_PREFIX/share"
+	fi
+fi

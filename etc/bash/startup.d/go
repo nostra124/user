@@ -1,9 +1,0 @@
-
-# setting GOROOT (the golang installation folder)
-if [ -e $HOME/.local/opt/go/latest ]; then
-	export GOROOT=$HOME/.local/opt/go/latest
-	export PATH="$GOROOT/bin:$PATH"
-elif [ -e /opt/go ]; then
-	export GOROOT=/opt/go
-	export PATH="$GOROOT/bin:$PATH"
-fi

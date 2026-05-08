@@ -1,0 +1,22 @@
+#!/bin/bash
+# Go setup. Reads ~/.local/etc/bash/config.sh for GOROOT override.
+
+[ -f "$HOME/.local/etc/bash/config.sh" ] && source "$HOME/.local/etc/bash/config.sh"
+
+[ "${USER_GO_ENABLED:-1}" = "0" ] && return
+
+GO_ROOT="${USER_GO_ROOT:-}"
+
+# setting GOROOT (the golang installation folder)
+if [ -z "$GO_ROOT" ]; then
+	if [ -e "$HOME/.local/opt/go/latest" ]; then
+		GO_ROOT="$HOME/.local/opt/go/latest"
+	elif [ -e /opt/go ]; then
+		GO_ROOT=/opt/go
+	fi
+fi
+
+if [ -n "$GO_ROOT" ]; then
+	export GOROOT="$GO_ROOT"
+	export PATH="$GOROOT/bin:$PATH"
+fi

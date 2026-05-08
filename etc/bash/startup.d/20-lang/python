@@ -1,4 +1,9 @@
 #!/bin/bash
+# Python setup. Reads ~/.local/etc/bash/config.sh for overrides.
+
+[ -f "$HOME/.local/etc/bash/config.sh" ] && source "$HOME/.local/etc/bash/config.sh"
+
+[ "${USER_PYTHON_ENABLED:-1}" = "0" ] && return
 
 if which python > /dev/null; then
 	PYTHON=$(which python)

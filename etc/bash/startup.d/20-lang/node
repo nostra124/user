@@ -1,0 +1,15 @@
+#!/bin/bash
+# Node.js setup. Reads ~/.local/etc/bash/config.sh for version override.
+
+[ -f "$HOME/.local/etc/bash/config.sh" ] && source "$HOME/.local/etc/bash/config.sh"
+
+[ "${USER_NODE_ENABLED:-1}" = "0" ] && return
+
+NODE_VER="${USER_NODE_VERSION:-20}"
+
+# Prefer homebrew keg, then system
+if [ -d "/opt/homebrew/opt/node@${NODE_VER}/bin" ]; then
+	export PATH="/opt/homebrew/opt/node@${NODE_VER}/bin:$PATH"
+elif [ -d "/usr/local/opt/node@${NODE_VER}/bin" ]; then
+	export PATH="/usr/local/opt/node@${NODE_VER}/bin:$PATH"
+fi

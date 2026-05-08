@@ -12,18 +12,28 @@ if [ -f /etc/bash.bashrc ]; then
 	source /etc/bash.bashrc
 fi
 
+############# CONFIG ########################################
+# Load user config if present. Modules read this to decide what to do.
+[ -f "$HOME/.local/etc/bash/config.sh" ] && source "$HOME/.local/etc/bash/config.sh"
+
 ############# GENERAL STARTUP ###############################
-if [ -d $HOME/.local/etc/bash/startup.d ]; then
-    for file in $HOME/.local/etc/bash/startup.d/*; do
-        [ -f "$file" ] && source "$file"
+# Load modules from numbered directories. Lower numbers = earlier.
+# Platform (10) must load before languages (20) so PATH is set.
+for category in 00-core 10-platform 20-lang 30-devtools 40-network 50-utils 90-user; do
+    dir="$HOME/.local/etc/bash/startup.d/$category"
+    [ -d "$dir" ] || continue
+    for file in "$dir"/*; do
+        [ -f "$file" ] || continue
+        mod=$(basename "$file")
+        # Skip if explicitly disabled in config
+        [[ " ${USER_DISABLED:-} " == *" $mod "* ]] && continue
+        # Skip if touch-disabled in disabled/ directory
+        [ -f "$HOME/.local/etc/bash/disabled/$mod" ] && continue
+        source "$file"
     done
-    unset file
-elif [ -d /usr/local/etc/bash/startup.d ]; then
-    for file in /usr/local/etc/bash/startup.d/*; do
-        [ -f "$file" ] && source "$file"
-    done
-    unset file
-fi
+    unset file mod
+done
+unset category dir
 
 ############# INCLUDE ALIASES ###############################
 if [ -f $HOME/.bash_aliases ]; then
