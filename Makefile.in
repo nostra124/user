@@ -20,8 +20,6 @@ SYSCONFDIR = @SYSCONFDIR@
 DATADIR   = @DATADIR@
 MANDIR    = @MANDIR@
 
-BUILD_DIR = build/$(PACKAGE)
-
 .PHONY: all install uninstall check check-unit check-vectors \
         check-sit check-all lint test help package clean \
         install-skills-user uninstall-skills-user
@@ -32,42 +30,51 @@ help:
 	@echo "Targets: install, uninstall, check, lint, check-sit, check-all,"
 	@echo "         install-skills-user, uninstall-skills-user, package, clean"
 
-# Stow-based install builds a tree mirroring $PREFIX layout under
-# $(BUILD_DIR), then `stow -t $(PREFIX)` symlinks it. Symmetric
-# uninstall via `stow -D`.
 install:
-	@command -v stow >/dev/null || { echo "stow not installed"; exit 1; }
-	@mkdir -p $(BUILD_DIR)$(BINDIR) $(BUILD_DIR)$(LIBEXECDIR)/$(PACKAGE) \
-	          $(BUILD_DIR)$(SYSCONFDIR)/bash_completion.d \
-	          $(BUILD_DIR)$(MANDIR)/man1 \
-	          $(BUILD_DIR)$(DATADIR)/doc/$(PACKAGE) \
-	          $(BUILD_DIR)$(DATADIR)/$(PACKAGE)
-	@cp -a bin/* $(BUILD_DIR)$(BINDIR)/
+	@mkdir -p $(BINDIR) $(LIBEXECDIR)/$(PACKAGE) \
+	          $(SYSCONFDIR)/bash_completion.d \
+	          $(MANDIR)/man1 \
+	          $(DATADIR)/doc/$(PACKAGE) \
+	          $(DATADIR)/$(PACKAGE)
+	@cp -a bin/* $(BINDIR)/
 	@if [ -d libexec/$(PACKAGE) ]; then \
-		cp -a libexec/$(PACKAGE)/* $(BUILD_DIR)$(LIBEXECDIR)/$(PACKAGE)/; \
+		cp -a libexec/$(PACKAGE)/* $(LIBEXECDIR)/$(PACKAGE)/; \
 	fi
 	@if [ -d etc ]; then \
-		cp -a etc/* $(BUILD_DIR)$(SYSCONFDIR)/; \
+		cp -a etc/* $(SYSCONFDIR)/; \
 	fi
 	@if [ -d share/man/man1 ]; then \
-		cp -a share/man/man1/* $(BUILD_DIR)$(MANDIR)/man1/; \
+		cp -a share/man/man1/* $(MANDIR)/man1/; \
 	fi
 	@if [ -d share/doc/$(PACKAGE) ]; then \
 		cp -a share/doc/$(PACKAGE)/* \
-		      $(BUILD_DIR)$(DATADIR)/doc/$(PACKAGE)/; \
+		      $(DATADIR)/doc/$(PACKAGE)/; \
 	fi
 	# .rpk/version → $DATADIR/<pkg>/version : the runtime version
 	# string the binary reads (FEAT-194). The binary's two-path
 	# fallback resolves to this file when invoked as the installed
 	# entry, and to .rpk/version when invoked from a dev tree.
 	@if [ -f .rpk/version ]; then \
-		install -m 644 .rpk/version $(BUILD_DIR)$(DATADIR)/$(PACKAGE)/version; \
+		install -m 644 .rpk/version $(DATADIR)/$(PACKAGE)/version; \
 	fi
-	@stow -d build -t $(PREFIX) $(PACKAGE)
 
 uninstall:
-	@command -v stow >/dev/null || { echo "stow not installed"; exit 1; }
-	@stow -d build -t $(PREFIX) -D $(PACKAGE) || true
+	@rm -f $(BINDIR)/$(PACKAGE)
+	@rm -rf $(LIBEXECDIR)/$(PACKAGE)
+	@if [ -d etc ]; then \
+		for f in etc/*; do \
+			name=$$(basename "$$f"); \
+			target="$(SYSCONFDIR)/$$name"; \
+			if [ -d "$$f" ]; then \
+				rm -rf "$$target"; \
+			else \
+				rm -f "$$target"; \
+			fi; \
+		done; \
+	fi
+	@rm -f $(MANDIR)/man1/$(PACKAGE).1
+	@rm -rf $(DATADIR)/doc/$(PACKAGE)
+	@rm -rf $(DATADIR)/$(PACKAGE)
 
 # Tests
 check: check-unit check-vectors
