@@ -46,9 +46,8 @@ install:
 	@if [ -d libexec/$(PACKAGE) ]; then \
 		cp -a libexec/$(PACKAGE)/* $(BUILD_DIR)$(LIBEXECDIR)/$(PACKAGE)/; \
 	fi
-	@if [ -d etc/bash_completion.d ]; then \
-		cp -a etc/bash_completion.d/* \
-		      $(BUILD_DIR)$(SYSCONFDIR)/bash_completion.d/; \
+	@if [ -d etc ]; then \
+		cp -a etc/* $(BUILD_DIR)$(SYSCONFDIR)/; \
 	fi
 	@if [ -d share/man/man1 ]; then \
 		cp -a share/man/man1/* $(BUILD_DIR)$(MANDIR)/man1/; \

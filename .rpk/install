@@ -1,11 +1,13 @@
 #!/bin/bash
 # Post-install hook for user package.
-# Symlink dotfiles into $HOME so they are available outside the stow prefix.
+# Symlink dotfiles from the stow-managed etc/ into $HOME.
 set -eu
 
-ln -sf "$PWD/etc/bashrc"        "$HOME/.bashrc"
-ln -sf "$PWD/etc/bash_profile"  "$HOME/.bash_profile"
-ln -sf "$PWD/etc/bash_logout"   "$HOME/.bash_logout"
-ln -sf "$PWD/etc/profile"       "$HOME/.profile"
-ln -sf "$PWD/etc/inputrc"       "$HOME/.inputrc"
-[ -d "$PWD/etc/bash" ] && ln -sf "$PWD/etc/bash" "$HOME/.bash"
+ETC="$HOME/.local/etc"
+
+ln -sf "$ETC/bashrc"        "$HOME/.bashrc"
+ln -sf "$ETC/bash_profile"  "$HOME/.bash_profile"
+ln -sf "$ETC/bash_logout"   "$HOME/.bash_logout"
+ln -sf "$ETC/profile"       "$HOME/.profile"
+ln -sf "$ETC/inputrc"       "$HOME/.inputrc"
+[ -d "$ETC/bash" ] && ln -sf "$ETC/bash" "$HOME/.bash"
