@@ -1,20 +1,7 @@
 #!/bin/bash
 # Build a `user` bundle for `rpk install <pkg>`.
 #
-# Pure-scripts package per the rpk PACKAGING.md cookbook
-# (no compile step, just stage files into $TARGET).
-#
-# Layout produced under $TARGET:
-#   bin/user
-#   libexec/user/...
-#   etc/bash_completion.d/user
-#   share/man/man1/user.1
-#   share/doc/user/...                (when present)
-#   share/user/version                (FEAT-194 runtime version)
-#
-# The other etc/ artefacts (bash_profile, bashrc, bash/, …) are
-# per-user templates distributed by `user shell setup`, not
-# system-wide installables, so they do not land in the bundle.
+# Standard rpk package skeleton (Autoconf / Make cookbook).
 
 set -eu
 
@@ -37,23 +24,7 @@ trap 'git checkout "$BRANCH" --force' EXIT
 git config advice.detachedHead false
 git checkout "$COMMIT" || die "failed to checkout $COMMIT for version $VERSION"
 
-mkdir -p \
-	"$TARGET/bin" \
-	"$TARGET/libexec/$PACKAGE" \
-	"$TARGET/etc/bash_completion.d" \
-	"$TARGET/share/man/man1" \
-	"$TARGET/share/doc/$PACKAGE" \
-	"$TARGET/share/$PACKAGE"
-
-install -m 0755 "bin/$PACKAGE" "$TARGET/bin/$PACKAGE"
-
-[ -d "libexec/$PACKAGE" ] && cp -a "libexec/$PACKAGE/." "$TARGET/libexec/$PACKAGE/"
-[ -d etc/bash_completion.d ] && cp -a etc/bash_completion.d/. "$TARGET/etc/bash_completion.d/"
-[ -d share/man/man1 ] && cp -a share/man/man1/. "$TARGET/share/man/man1/"
-[ -d "share/doc/$PACKAGE" ] && cp -a "share/doc/$PACKAGE/." "$TARGET/share/doc/$PACKAGE/"
-
-# Runtime version stamp (FEAT-194). bin/user looks for this at
-# $PREFIX/share/user/version when invoked from an installed tree.
-printf '%s\n' "$VERSION" > "$TARGET/share/$PACKAGE/version"
+./configure --prefix="$TARGET"
+make install
 
 git checkout "$BRANCH" --force
