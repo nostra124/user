@@ -62,7 +62,7 @@ done
 : "${MANDIR:=$PREFIX/share/man}"
 
 # Required tools
-for tool in bash stow git; do
+for tool in bash git; do
 	if ! command -v "$tool" >/dev/null; then
 		echo "configure: required tool not found: $tool" >&2
 		exit 1
