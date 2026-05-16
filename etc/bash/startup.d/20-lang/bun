@@ -1,0 +1,17 @@
+#!/bin/bash
+# Bun setup. Reads ~/.local/etc/bash/config.sh for version override.
+
+[ -f "$HOME/.local/etc/bash/config.sh" ] && source "$HOME/.local/etc/bash/config.sh"
+
+[ "${USER_BUN_ENABLED:-1}" = "0" ] && return
+
+BUN_VER="${USER_BUN_VERSION:-}"
+
+# Prefer homebrew keg, then ~/.bun, then system
+if [ -n "$BUN_VER" ] && [ -d "/opt/homebrew/opt/bun@${BUN_VER}/bin" ]; then
+    export PATH="/opt/homebrew/opt/bun@${BUN_VER}/bin:$PATH"
+elif [ -n "$BUN_VER" ] && [ -d "/usr/local/opt/bun@${BUN_VER}/bin" ]; then
+    export PATH="/usr/local/opt/bun@${BUN_VER}/bin:$PATH"
+elif [ -d "$HOME/.bun/bin" ]; then
+    export PATH="$HOME/.bun/bin:$PATH"
+fi
